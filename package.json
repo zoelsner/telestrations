@@ -1,0 +1,49 @@
+{
+  "name": "telestrations",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "npm@11.0.0",
+  "engines": {
+    "node": ">=22.13.0 <23 || >=24.0.0",
+    "npm": ">=10"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm run test",
+    "ci": "npm run check && npm run build",
+    "convex:dev": "convex dev"
+  },
+  "dependencies": {
+    "convex": "^1.39.1",
+    "lucide-react": "^1.16.0",
+    "next": "16.2.6",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "zod": "^4.4.3"
+  },
+  "overrides": {
+    "postcss": "8.5.14"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^4.1.6",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.6",
+    "prettier": "^3.8.3",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^4.1.6"
+  }
+}
