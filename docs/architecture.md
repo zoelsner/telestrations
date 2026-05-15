@@ -15,6 +15,8 @@ and coordinates room state.
 - Convex: live room state, durable game data, server-side validation, reconnect,
   timers, and reveal state.
 - Vitest: fast domain and tooling tests.
+- Playwright: deterministic browser coverage for the app shell and core
+  multiplayer workflow as it comes online.
 
 ## Boundaries
 
@@ -48,11 +50,19 @@ MVP transport for live collaborative drawing strokes. If live stroke streaming,
 spectating, or collaborative drawing enters scope, evaluate Liveblocks or PartyKit
 as a separate transport.
 
+## Testing Strategy
+
+`docs/testing.md` defines the test pyramid, browser profiles, and deterministic
+E2E contract. PR CI should protect the stable merge gate; the 10 to 15 player
+rehearsal remains a launch gate before team use.
+
 ## Definition Of Done
 
 - Linked issue and focused branch.
 - Scope matches one issue.
 - Lint, format check, typecheck, unit tests, and build pass.
+- Testing follows `docs/testing.md`; foundational E2E is deterministic and avoids
+  production services in PR CI.
 - Architecture docs are updated when boundaries or stack decisions change.
 - No untracked type escapes, lint disables, skipped tests, or boundary deviations.
 - PR title follows Conventional Commit style.
