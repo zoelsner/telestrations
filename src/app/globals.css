@@ -6,9 +6,12 @@
   --app-muted: #6b7280;
   --app-border: #e4e0d8;
   --app-border-strong: #c9c2b6;
+  --app-panel: #fffefa;
   --app-soft: #f0eee8;
   --app-accent: #2563eb;
   --app-accent-soft: #dbeafe;
+  --paper: #fffdf7;
+  --ink: #111827;
   --background: var(--app-background);
   --foreground: var(--app-foreground);
 }
