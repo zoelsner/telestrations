@@ -78,6 +78,11 @@ canvas and touch work matures, add pointer/touch-specific assertions and conside
 WebKit coverage for Safari-class behavior. The launch rehearsal remains
 responsible for the full 10 to 15 player test pass.
 
+The current mobile shell contract is documented in `docs/mobile-readiness.md`.
+Playwright protects the no-horizontal-overflow rule across the desktop and mobile
+projects, plus the foundational `touch-action: none` contract for the drawing
+surface.
+
 ## Commands
 
 Expected commands once issue #2 wires CI:

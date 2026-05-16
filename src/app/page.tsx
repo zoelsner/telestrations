@@ -47,8 +47,8 @@ export default function Home() {
   const convexConfigured = Boolean(process.env.NEXT_PUBLIC_CONVEX_URL);
 
   return (
-    <main className="min-h-screen bg-[var(--app-background)] text-[var(--app-foreground)]">
-      <div className="mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-4 py-5 sm:px-6 lg:px-8">
+    <main className="min-h-svh bg-[var(--app-background)] text-[var(--app-foreground)]">
+      <div className="safe-page-bottom mx-auto flex min-h-svh w-full max-w-[1440px] flex-col px-4 py-5 sm:px-6 lg:px-8">
         <header className="flex flex-col gap-4 border-b border-[var(--app-border)] pb-5 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <p className="text-sm font-medium text-[var(--app-muted)]">Room F7K2</p>
@@ -57,19 +57,19 @@ export default function Home() {
             </h1>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <div className="inline-flex items-center gap-2 rounded-md border border-[var(--app-border)] bg-[var(--app-panel)] px-3 py-2 text-sm text-[var(--app-muted)] shadow-sm">
-              <Link2 size={16} />
-              draw.team/F7K2
+            <div className="inline-flex min-w-0 items-center gap-2 rounded-md border border-[var(--app-border)] bg-[var(--app-panel)] px-3 py-2 text-sm text-[var(--app-muted)] shadow-sm sm:max-w-none">
+              <Link2 className="shrink-0" size={16} />
+              <span className="truncate">draw.team/F7K2</span>
             </div>
-            <Button>
+            <Button className="w-full sm:w-auto">
               <Copy size={16} />
               Copy link
             </Button>
           </div>
         </header>
 
-        <section className="grid flex-1 gap-4 py-5 xl:grid-cols-[292px_minmax(0,1fr)_316px]">
-          <Panel className="flex flex-col p-4">
+        <section className="grid flex-1 gap-4 py-4 sm:py-5 xl:grid-cols-[292px_minmax(0,1fr)_316px]">
+          <Panel className="order-2 flex flex-col p-4 lg:order-1">
             <SectionHeader label="Lobby" meta={`${players.length}/15`} />
 
             <div className="mt-4 space-y-2">
@@ -103,17 +103,19 @@ export default function Home() {
             </div>
           </Panel>
 
-          <Panel className="min-w-0 overflow-hidden">
-            <div className="flex flex-col gap-3 border-b border-[var(--app-border)] p-4 lg:flex-row lg:items-center lg:justify-between">
+          <Panel className="order-1 overflow-hidden lg:order-2">
+            <div className="flex flex-col gap-3 border-b border-[var(--app-border)] p-3 sm:p-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-sm font-medium text-[var(--app-muted)]">
                   Turn {activeTaskPreview.drawTask.currentTurn}
                 </p>
-                <h2 className="text-xl font-semibold">{activeTaskPreview.drawTask.title}</h2>
+                <h2 className="text-lg font-semibold sm:text-xl">
+                  {activeTaskPreview.drawTask.title}
+                </h2>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex w-full items-center gap-2 sm:w-auto">
                 <Timer value={activeTaskPreview.drawTask.timer} />
-                <Button variant="primary">
+                <Button className="flex-1 sm:flex-none" variant="primary">
                   <Send size={16} />
                   Submit
                 </Button>
@@ -129,13 +131,13 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="p-4">
+            <div className="p-3 sm:p-4">
               <DrawingToolbar />
               <DrawingCanvas />
             </div>
           </Panel>
 
-          <div className="grid gap-4">
+          <div className="order-3 grid gap-4">
             <Panel className="p-4">
               <SectionHeader label="Create room" meta="Live" />
               <CreateRoomForm convexConfigured={convexConfigured} />
@@ -182,8 +184,11 @@ export default function Home() {
 
 function DrawingToolbar() {
   return (
-    <div className="mb-3 flex flex-col gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-soft)] p-2 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-2 overflow-x-auto">
+    <div
+      className="mb-3 flex flex-col gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-soft)] p-2 sm:flex-row sm:items-center sm:justify-between"
+      data-testid="drawing-toolbar"
+    >
+      <div className="flex min-w-0 touch-pan-x items-center gap-2 overflow-x-auto overscroll-x-contain pb-1 sm:pb-0">
         <IconButton label="Brush">
           <Brush size={17} />
         </IconButton>
@@ -197,11 +202,11 @@ function DrawingToolbar() {
           <Eraser size={17} />
         </IconButton>
       </div>
-      <div className="flex items-center gap-2 overflow-x-auto">
+      <div className="flex min-w-0 touch-pan-x items-center gap-2 overflow-x-auto overscroll-x-contain pb-1 sm:pb-0">
         {swatches.map((color) => (
           <button
             aria-label={`Use ${color}`}
-            className="h-7 w-7 shrink-0 rounded-full border border-black/10 ring-offset-2 transition focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)]"
+            className="h-10 w-10 shrink-0 rounded-full border border-black/10 ring-offset-2 transition focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)] sm:h-7 sm:w-7"
             key={color}
             style={{ backgroundColor: color }}
             type="button"
@@ -214,8 +219,13 @@ function DrawingToolbar() {
 
 function DrawingCanvas() {
   return (
-    <div className="aspect-[4/3] min-h-[360px] w-full rounded-lg border border-[var(--app-border-strong)] bg-[var(--paper)] p-4 shadow-inner">
-      <div className="relative h-full overflow-hidden rounded-md bg-[linear-gradient(0deg,rgba(17,24,39,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(17,24,39,0.035)_1px,transparent_1px)] bg-[size:24px_24px]">
+    <div
+      aria-label="Drawing canvas"
+      className="aspect-[4/3] min-h-[min(64svh,360px)] w-full touch-none select-none overscroll-contain rounded-lg border border-[var(--app-border-strong)] bg-[var(--paper)] p-2 shadow-inner sm:min-h-[360px] sm:p-4"
+      data-testid="drawing-canvas"
+      role="img"
+    >
+      <div className="relative h-full min-h-[220px] touch-none overflow-hidden rounded-md bg-[linear-gradient(0deg,rgba(17,24,39,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(17,24,39,0.035)_1px,transparent_1px)] bg-[size:24px_24px] sm:min-h-0">
         <div className="absolute left-[20%] top-[23%] h-24 w-32 rounded-lg border-4 border-[var(--ink)] bg-white" />
         <div className="absolute left-[24%] top-[33%] grid h-11 w-24 grid-cols-3 gap-1">
           {Array.from({ length: 6 }).map((_, index) => (
@@ -225,7 +235,7 @@ function DrawingCanvas() {
         <div className="absolute left-[54%] top-[24%] h-20 w-20 rounded-full border-4 border-[var(--app-accent)]" />
         <div className="absolute left-[60%] top-[40%] h-28 w-1 -rotate-12 rounded-full bg-[var(--ink)]" />
         <div className="absolute left-[50%] top-[54%] h-1 w-40 -rotate-6 rounded-full bg-[var(--ink)]" />
-        <Pencil className="absolute bottom-8 right-8 text-[var(--app-accent)]" size={40} />
+        <Pencil className="absolute bottom-5 right-5 h-8 w-8 text-[var(--app-accent)] sm:bottom-8 sm:right-8 sm:h-10 sm:w-10" />
       </div>
     </div>
   );
@@ -246,7 +256,7 @@ function SketchPreview() {
 
 function Timer({ value }: { value: string }) {
   return (
-    <div className="inline-flex h-10 items-center gap-2 rounded-md border border-[var(--app-border)] bg-white px-3 text-sm font-medium">
+    <div className="inline-flex h-11 shrink-0 items-center gap-2 rounded-md border border-[var(--app-border)] bg-white px-3 text-sm font-medium sm:h-10">
       <Clock3 size={16} className="text-[var(--app-muted)]" />
       <span>{value}</span>
     </div>
