@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Clock3,
   Crown,
+  Download,
   DoorOpen,
   Image as ImageIcon,
   Loader2,
@@ -33,6 +34,7 @@ import { normalizeRoomCode, validateDisplayName } from "@/domain/room-join";
 import { getStartGameGate } from "@/domain/start-game";
 import { TIMER_SECONDS, getTurnTimerState } from "@/domain/timer";
 import { getOrCreatePlayerToken } from "../../room-session";
+import { downloadRevealPdf } from "./pdf-export";
 
 type Lobby = NonNullable<ReturnType<typeof useQuery<typeof api.rooms.getLobby>>>;
 type ActiveTask = NonNullable<ReturnType<typeof useQuery<typeof api.rooms.getActiveTask>>>;
@@ -712,6 +714,8 @@ function RoundProgressCell({ label, value }: { label: string; value: number }) {
 
 function RevealSurface({ code, reveal }: { code: string; reveal: Reveal | null }) {
   const [selectedChainId, setSelectedChainId] = useState<string | null>(null);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   if (reveal === null) {
     return <MissingRoom code={code} />;
@@ -726,6 +730,7 @@ function RevealSurface({ code, reveal }: { code: string; reveal: Reveal | null }
     selectedChainId,
   });
   const selectedChain = revealView.selectedChain;
+  const revealForExport = reveal;
 
   function selectByOffset(offset: number) {
     const nextItem = revealView.overview[revealView.currentIndex + offset];
@@ -735,14 +740,42 @@ function RevealSurface({ code, reveal }: { code: string; reveal: Reveal | null }
     }
   }
 
+  async function handleExportPdf() {
+    if (isExportingPdf) {
+      return;
+    }
+
+    setExportError(null);
+    setIsExportingPdf(true);
+
+    try {
+      await downloadRevealPdf(revealForExport);
+    } catch (caughtError) {
+      setExportError(errorMessage(caughtError, "Could not export this PDF."));
+    } finally {
+      setIsExportingPdf(false);
+    }
+  }
+
   return (
     <div className="flex min-h-full flex-col">
       <div className="flex flex-col gap-3 border-b border-[var(--app-border)] p-4 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <p className="text-sm font-medium text-[var(--app-muted)]">Room {reveal.room.code}</p>
           <h2 className="text-xl font-semibold">Final reveal</h2>
+          {exportError ? <ErrorText message={exportError} /> : null}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {reveal.currentPlayer?.isHost === true ? (
+            <Button disabled={isExportingPdf} onClick={handleExportPdf}>
+              {isExportingPdf ? (
+                <Loader2 className="animate-spin" size={16} />
+              ) : (
+                <Download size={16} />
+              )}
+              Export PDF
+            </Button>
+          ) : null}
           <Button
             aria-label="Previous chain"
             disabled={!revealView.canGoPrevious}

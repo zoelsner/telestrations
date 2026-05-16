@@ -10,6 +10,7 @@ import {
   nextPhaseAfterCompletedTurn,
 } from "../src/domain/rotation";
 import {
+  getPromptPack,
   getPromptPackOptions,
   selectPackPrompt,
   validatePromptPackId,
@@ -277,10 +278,29 @@ const revealResult = v.union(
         isHost: v.boolean(),
       }),
     ),
+    players: v.array(
+      v.object({
+        displayName: v.string(),
+        isHost: v.boolean(),
+        order: v.number(),
+      }),
+    ),
     room: v.object({
       code: v.string(),
       currentTurn: v.number(),
       id: v.id("rooms"),
+      revealedAt: v.optional(v.number()),
+      settings: v.object({
+        drawingSeconds: v.number(),
+        guessingSeconds: v.number(),
+        promptMode: v.union(
+          v.literal("player-written"),
+          v.literal("safe-pack"),
+          v.literal("mixed"),
+        ),
+        promptPackLabel: v.optional(v.string()),
+      }),
+      startedAt: v.optional(v.number()),
       status: v.union(
         v.literal("setup"),
         v.literal("lobby"),
@@ -645,6 +665,7 @@ export const getReveal = query({
     const currentPlayer =
       players.find((player) => player.tokenHash === tokenHash && player.status !== "removed") ??
       null;
+    const promptPackResult = validatePromptPackId(room.settings.promptPackId);
     const chains =
       room.status === "reveal" || room.status === "archived"
         ? await getRevealChains(ctx, room._id, playersById)
@@ -660,10 +681,27 @@ export const getReveal = query({
               displayName: currentPlayer.displayName,
               isHost: currentPlayer.isHost,
             },
+      players: players
+        .filter((player) => player.status !== "removed")
+        .map((player) => ({
+          displayName: player.displayName,
+          isHost: player.isHost,
+          order: player.order,
+        })),
       room: {
         code: room.code,
         currentTurn: room.currentTurn,
         id: room._id,
+        ...(room.revealedAt === undefined ? {} : { revealedAt: room.revealedAt }),
+        settings: {
+          drawingSeconds: room.settings.drawingSeconds,
+          guessingSeconds: room.settings.guessingSeconds,
+          promptMode: room.settings.promptMode,
+          ...(promptPackResult.ok
+            ? { promptPackLabel: getPromptPack(promptPackResult.value).label }
+            : {}),
+        },
+        ...(room.startedAt === undefined ? {} : { startedAt: room.startedAt }),
         status: room.status,
       },
     };

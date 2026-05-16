@@ -146,6 +146,16 @@ test.describe("multiplayer game loop", () => {
       await expect(host.getByText("A coffee machine doing standup")).toBeVisible();
       await host.getByRole("button", { name: /Chain 3/ }).click();
       await expect(host.getByText("A whiteboard full of tiny rockets")).toBeVisible();
+
+      const downloadPromise = host.waitForEvent("download");
+
+      await host.getByRole("button", { name: "Export PDF" }).click();
+
+      const download = await downloadPromise;
+
+      expect(download.suggestedFilename()).toMatch(
+        /^telestrations-[A-Z2-9]{4}-\d{4}-\d{2}-\d{2}\.pdf$/,
+      );
     } finally {
       await hostContext.close();
       await guestOneContext.close();
