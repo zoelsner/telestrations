@@ -30,4 +30,18 @@ test.describe("app shell", () => {
 
     expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
   });
+
+  test("renders the room route shell", async ({ page }) => {
+    await page.goto("/room/F7K2");
+
+    await expect(page.getByRole("heading", { level: 1, name: "Telestrations" })).toBeVisible();
+    await expect(page.getByText("Room F7K2")).toBeVisible();
+
+    const metrics = await page.evaluate(() => ({
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    }));
+
+    expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
+  });
 });
