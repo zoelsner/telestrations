@@ -12,6 +12,7 @@ import {
   validateRoomCode,
 } from "../src/domain/room-join";
 import { getStartGameGate } from "../src/domain/start-game";
+import { prepareEntrySubmission } from "../src/domain/submission";
 
 const roomResult = v.object({
   roomId: v.id("rooms"),
@@ -28,6 +29,66 @@ const startGameResult = v.object({
   currentEntryType: v.literal("prompt"),
   chainCount: v.number(),
   assignmentCount: v.number(),
+});
+
+const drawingPayloadInput = v.object({
+  version: v.literal(1),
+  canvas: v.object({
+    width: v.number(),
+    height: v.number(),
+  }),
+  background: v.object({
+    type: v.literal("solid"),
+    color: v.string(),
+  }),
+  strokes: v.array(
+    v.object({
+      id: v.string(),
+      color: v.string(),
+      width: v.number(),
+      points: v.array(
+        v.object({
+          x: v.number(),
+          y: v.number(),
+          pressure: v.optional(v.number()),
+          t: v.optional(v.number()),
+        }),
+      ),
+      startedAt: v.optional(v.number()),
+      endedAt: v.optional(v.number()),
+    }),
+  ),
+  artifact: v.object({
+    mimeType: v.literal("image/png"),
+    storageId: v.id("_storage"),
+    width: v.number(),
+    height: v.number(),
+    byteSize: v.optional(v.number()),
+  }),
+});
+
+const entrySubmissionInput = v.union(
+  v.object({
+    type: v.literal("prompt"),
+    text: v.string(),
+  }),
+  v.object({
+    type: v.literal("guess"),
+    text: v.string(),
+  }),
+  v.object({
+    type: v.literal("drawing"),
+    drawing: drawingPayloadInput,
+  }),
+);
+
+const submitEntryResult = v.object({
+  roomId: v.id("rooms"),
+  assignmentId: v.id("assignments"),
+  chainId: v.id("chains"),
+  entryId: v.id("entries"),
+  turn: v.number(),
+  type: v.union(v.literal("prompt"), v.literal("drawing"), v.literal("guess")),
 });
 
 type RoomLookupCtx = {
@@ -322,6 +383,96 @@ export const startGame = mutation({
   },
 });
 
+export const submitEntry = mutation({
+  args: {
+    code: v.string(),
+    playerToken: v.string(),
+    payload: entrySubmissionInput,
+  },
+  returns: submitEntryResult,
+  handler: async (ctx, args) => {
+    const code = requireValidRoomCode(args.code);
+    const tokenHash = await requireValidTokenHash(args.playerToken);
+    const now = Date.now();
+    const room = await getRoomByCode(ctx, code);
+
+    if (!room) {
+      throw roomError("room_not_found", "Room not found.");
+    }
+
+    const currentPlayer = await getPlayerByTokenHash(ctx, room._id, tokenHash);
+
+    if (!currentPlayer || currentPlayer.status === "removed") {
+      throw roomError("player_not_found", "Player not found in this room.");
+    }
+
+    const assignment = await getAssignmentByPlayerTurn(ctx, currentPlayer._id, room.currentTurn);
+    const submissionAssignment =
+      assignment === null
+        ? null
+        : {
+            entryType: assignment.entryType,
+            playerId: assignment.playerId,
+            status: assignment.status,
+            ...(assignment.submittedEntryId === undefined
+              ? {}
+              : { submittedEntryId: assignment.submittedEntryId }),
+            turn: assignment.turn,
+          };
+    const preparedSubmission = prepareEntrySubmission({
+      assignment: submissionAssignment,
+      currentEntryType: room.currentEntryType,
+      currentTurn: room.currentTurn,
+      payload: args.payload,
+      playerId: currentPlayer._id,
+      roomStatus: room.status,
+    });
+
+    if (!preparedSubmission.ok) {
+      throw roomError(preparedSubmission.code, preparedSubmission.message);
+    }
+
+    if (!assignment) {
+      throw roomError("assignment_not_found", "No active assignment was found.");
+    }
+
+    const entryId = await ctx.db.insert("entries", {
+      roomId: room._id,
+      chainId: assignment.chainId,
+      authorPlayerId: currentPlayer._id,
+      turn: preparedSubmission.turn,
+      type: preparedSubmission.entryType,
+      payload: preparedSubmission.payload,
+      createdAt: now,
+      submittedAt: now,
+    });
+
+    await ctx.db.patch(assignment._id, {
+      status: "submitted",
+      submittedEntryId: entryId,
+      submittedAt: now,
+    });
+
+    await ctx.db.patch(assignment.chainId, {
+      currentEntryId: entryId,
+      updatedAt: now,
+    });
+
+    await ctx.db.patch(room._id, {
+      updatedAt: now,
+    });
+
+    return {
+      roomId: room._id,
+      assignmentId: assignment._id,
+      chainId: assignment.chainId,
+      entryId,
+      turn: preparedSubmission.turn,
+      type: preparedSubmission.entryType,
+    };
+  },
+});
+
 async function createUniqueRoomCode(ctx: RoomLookupCtx) {
   for (let attempts = 0; attempts < 10; attempts += 1) {
     const code = generateRoomCode(randomIndex);
@@ -357,6 +508,17 @@ async function getPlayerByTokenHash(
   return await ctx.db
     .query("players")
     .withIndex("by_room_token", (q) => q.eq("roomId", roomId).eq("tokenHash", tokenHash))
+    .unique();
+}
+
+async function getAssignmentByPlayerTurn(
+  ctx: RoomLookupCtx,
+  playerId: Doc<"players">["_id"],
+  turn: number,
+) {
+  return await ctx.db
+    .query("assignments")
+    .withIndex("by_player_turn", (q) => q.eq("playerId", playerId).eq("turn", turn))
     .unique();
 }
 
