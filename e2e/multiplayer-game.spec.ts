@@ -81,6 +81,7 @@ test.describe("multiplayer game loop", () => {
       await submitPrompt(guestTwo, "A whiteboard full of tiny rockets");
 
       await expect(host.getByRole("heading", { name: "Draw this" })).toBeVisible();
+      await expect(host.getByText(/^1:(2\d|30)$/).first()).toBeVisible();
       await expect(host.getByText("A whiteboard full of tiny rockets")).toBeVisible();
       await expect(host.getByText("A roadmap in a wind tunnel")).toHaveCount(0);
       await expect(host.getByText("A coffee machine doing standup")).toHaveCount(0);
@@ -90,6 +91,7 @@ test.describe("multiplayer game loop", () => {
       await submitDrawing(guestTwo);
 
       await expect(host.getByRole("heading", { name: "Guess this" })).toBeVisible();
+      await expect(host.getByText(/^(0:5\d|1:00)$/).first()).toBeVisible();
       await expect(host.getByText("Previous drawing")).toBeVisible();
 
       await submitGuess(host, "A rocket whiteboard");

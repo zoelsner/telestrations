@@ -101,6 +101,7 @@ export default defineSchema({
     settings: roomSettings,
     currentTurn: v.number(),
     currentEntryType: v.optional(entryType),
+    currentTurnStartedAt: v.optional(v.number()),
     playerCount: v.number(),
     seed: v.string(),
     activeDeadlineAt: v.optional(v.number()),
