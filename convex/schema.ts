@@ -71,6 +71,12 @@ const drawingPayloadV1 = v.object({
   }),
 });
 
+const skippedDrawingPayload = v.object({
+  type: v.literal("drawing"),
+  skipped: v.literal(true),
+  reason: v.string(),
+});
+
 const entryPayload = v.union(
   v.object({
     type: v.literal("prompt"),
@@ -84,6 +90,7 @@ const entryPayload = v.union(
     type: v.literal("drawing"),
     drawing: drawingPayloadV1,
   }),
+  skippedDrawingPayload,
 );
 
 export default defineSchema({

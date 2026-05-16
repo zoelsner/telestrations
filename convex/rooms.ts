@@ -9,6 +9,7 @@ import {
   isTurnComplete,
   nextPhaseAfterCompletedTurn,
 } from "../src/domain/rotation";
+import { getSkipAssignmentGate } from "../src/domain/recovery";
 import {
   generateRoomCode,
   validateDisplayName,
@@ -114,6 +115,16 @@ const activeTaskPreviousEntryResult = v.union(
     label: v.literal("Previous drawing"),
     turn: v.number(),
   }),
+  v.object({
+    kind: v.literal("skipped"),
+    label: v.union(
+      v.literal("Previous prompt"),
+      v.literal("Previous guess"),
+      v.literal("Previous drawing"),
+    ),
+    turn: v.number(),
+    value: v.string(),
+  }),
 );
 
 const activeTaskResult = v.union(
@@ -160,9 +171,31 @@ const activeTaskResult = v.union(
       ),
     }),
     round: v.object({
+      completedCount: v.number(),
       pendingCount: v.number(),
       submittedCount: v.number(),
+      skippedCount: v.number(),
       totalCount: v.number(),
+      players: v.array(
+        v.object({
+          assignmentId: v.id("assignments"),
+          assignmentStatus: v.union(
+            v.literal("pending"),
+            v.literal("submitted"),
+            v.literal("skipped"),
+            v.literal("expired"),
+          ),
+          displayName: v.string(),
+          isCurrentPlayer: v.boolean(),
+          isHost: v.boolean(),
+          playerId: v.id("players"),
+          playerStatus: v.union(
+            v.literal("connected"),
+            v.literal("disconnected"),
+            v.literal("removed"),
+          ),
+        }),
+      ),
     }),
   }),
 );
@@ -179,6 +212,14 @@ const revealEntryResult = v.union(
     authorName: v.string(),
     id: v.id("entries"),
     imageUrl: v.optional(v.string()),
+    turn: v.number(),
+    type: v.literal("drawing"),
+  }),
+  v.object({
+    authorName: v.string(),
+    id: v.id("entries"),
+    skipped: v.literal(true),
+    text: v.string(),
     turn: v.number(),
     type: v.literal("drawing"),
   }),
@@ -224,6 +265,22 @@ const revealResult = v.union(
     }),
   }),
 );
+
+const skipAssignmentResult = v.object({
+  advanced: v.boolean(),
+  assignmentId: v.id("assignments"),
+  chainId: v.id("chains"),
+  currentEntryType: v.optional(
+    v.union(v.literal("prompt"), v.literal("drawing"), v.literal("guess")),
+  ),
+  currentTurn: v.number(),
+  entryId: v.id("entries"),
+  roomId: v.id("rooms"),
+  roomStatus: v.union(v.literal("active"), v.literal("reveal")),
+  skippedPlayerId: v.id("players"),
+  turn: v.number(),
+  type: v.union(v.literal("prompt"), v.literal("drawing"), v.literal("guess")),
+});
 
 type RoomLookupCtx = {
   db: QueryCtx["db"] | MutationCtx["db"];
@@ -446,8 +503,16 @@ export const getActiveTask = query({
         ? null
         : await getAssignmentByPlayerTurn(ctx, currentPlayer._id, room.currentTurn);
     const roundAssignments = await getAssignmentsByRoomTurn(ctx, room._id, room.currentTurn);
+    const roundPlayers = await getPlayersByRoom(ctx, room._id);
+    const playersById = new Map(roundPlayers.map((player) => [player._id, player]));
     const previousEntry =
       assignment === null ? undefined : await getPreviousEntryForAssignment(ctx, assignment);
+    const submittedCount = roundAssignments.filter(
+      (roundAssignment) => roundAssignment.status === "submitted",
+    ).length;
+    const skippedCount = roundAssignments.filter(
+      (roundAssignment) => roundAssignment.status === "skipped",
+    ).length;
 
     return {
       assignment:
@@ -480,10 +545,30 @@ export const getActiveTask = query({
         status: room.status,
       },
       round: {
+        completedCount: submittedCount + skippedCount,
         pendingCount: roundAssignments.filter((assignment) => assignment.status === "pending")
           .length,
-        submittedCount: roundAssignments.filter((assignment) => assignment.status === "submitted")
-          .length,
+        players: roundAssignments
+          .map((roundAssignment) => {
+            const player = playersById.get(roundAssignment.playerId);
+
+            if (!player) {
+              return null;
+            }
+
+            return {
+              assignmentId: roundAssignment._id,
+              assignmentStatus: roundAssignment.status,
+              displayName: player.displayName,
+              isCurrentPlayer: currentPlayer?._id === player._id,
+              isHost: player.isHost,
+              playerId: player._id,
+              playerStatus: player.status,
+            };
+          })
+          .filter(isPresent),
+        skippedCount,
+        submittedCount,
         totalCount: roundAssignments.length,
       },
     };
@@ -777,6 +862,99 @@ export const submitEntry = mutation({
   },
 });
 
+export const skipAssignment = mutation({
+  args: {
+    assignmentId: v.id("assignments"),
+    code: v.string(),
+    playerToken: v.string(),
+  },
+  returns: skipAssignmentResult,
+  handler: async (ctx, args) => {
+    const code = requireValidRoomCode(args.code);
+    const tokenHash = await requireValidTokenHash(args.playerToken);
+    const now = Date.now();
+    const room = await getRoomByCode(ctx, code);
+
+    if (!room) {
+      throw roomError("room_not_found", "Room not found.");
+    }
+
+    const currentPlayer = await getPlayerByTokenHash(ctx, room._id, tokenHash);
+    const assignment = await ctx.db.get(args.assignmentId);
+    const skipGate = getSkipAssignmentGate({
+      actor:
+        currentPlayer === null
+          ? null
+          : {
+              isHost: currentPlayer.isHost,
+              status: currentPlayer.status,
+            },
+      assignment:
+        assignment === null
+          ? null
+          : {
+              roomId: assignment.roomId,
+              status: assignment.status,
+              turn: assignment.turn,
+            },
+      currentTurn: room.currentTurn,
+      roomId: room._id,
+      roomStatus: room.status,
+    });
+
+    if (!skipGate.ok) {
+      throw roomError(skipGate.code, skipGate.message);
+    }
+
+    if (!assignment) {
+      throw roomError("assignment_not_found", "No active assignment was found.");
+    }
+
+    const entryId = await ctx.db.insert("entries", {
+      roomId: room._id,
+      chainId: assignment.chainId,
+      authorPlayerId: assignment.playerId,
+      turn: assignment.turn,
+      type: assignment.entryType,
+      payload: skippedEntryPayload(assignment.entryType),
+      createdAt: now,
+      submittedAt: now,
+    });
+
+    await ctx.db.patch(assignment._id, {
+      status: "skipped",
+      submittedEntryId: entryId,
+      skippedAt: now,
+    });
+
+    await ctx.db.patch(assignment.chainId, {
+      currentEntryId: entryId,
+      updatedAt: now,
+    });
+
+    await ctx.db.patch(room._id, {
+      updatedAt: now,
+    });
+    const advancement = await advanceRoomAfterTurnIfReady(ctx, room, now);
+
+    return {
+      advanced: advancement.advanced,
+      assignmentId: assignment._id,
+      chainId: assignment.chainId,
+      ...(advancement.currentEntryType === undefined
+        ? {}
+        : { currentEntryType: advancement.currentEntryType }),
+      currentTurn: advancement.currentTurn,
+      entryId,
+      roomId: room._id,
+      roomStatus: advancement.roomStatus,
+      skippedPlayerId: assignment.playerId,
+      turn: assignment.turn,
+      type: assignment.entryType,
+    };
+  },
+});
+
 async function advanceRoomAfterTurnIfReady(
   ctx: MutationCtx,
   room: Doc<"rooms">,
@@ -960,6 +1138,12 @@ async function getPreviousEntryForAssignment(
       label: "Previous drawing";
       turn: number;
     }
+  | {
+      kind: "skipped";
+      label: "Previous prompt" | "Previous guess" | "Previous drawing";
+      turn: number;
+      value: string;
+    }
   | undefined
 > {
   if (assignment.previousEntryId === undefined) {
@@ -973,6 +1157,15 @@ async function getPreviousEntryForAssignment(
   }
 
   if (previousEntry.payload.type === "drawing") {
+    if ("skipped" in previousEntry.payload) {
+      return {
+        kind: "skipped",
+        label: "Previous drawing",
+        turn: previousEntry.turn,
+        value: previousEntry.payload.reason,
+      };
+    }
+
     const imageUrl = await ctx.storage.getUrl(previousEntry.payload.drawing.artifact.storageId);
 
     if (imageUrl === null) {
@@ -1014,6 +1207,18 @@ async function getRevealChains(
       const authorName = playerName(playersById, entry.authorPlayerId);
 
       if (entry.payload.type === "drawing") {
+        if ("skipped" in entry.payload) {
+          revealEntries.push({
+            authorName,
+            id: entry._id,
+            skipped: true as const,
+            text: entry.payload.reason,
+            turn: entry.turn,
+            type: "drawing" as const,
+          });
+          continue;
+        }
+
         const imageUrl = await ctx.storage.getUrl(entry.payload.drawing.artifact.storageId);
 
         revealEntries.push({
@@ -1075,6 +1280,25 @@ function requireOrderValue<TValue>(
   }
 
   return value;
+}
+
+function skippedEntryPayload(entryType: "prompt" | "drawing" | "guess") {
+  if (entryType === "drawing") {
+    return {
+      reason: "Drawing skipped by host",
+      skipped: true,
+      type: "drawing",
+    } as const;
+  }
+
+  return {
+    text: `${entryType === "prompt" ? "Prompt" : "Guess"} skipped by host`,
+    type: entryType,
+  } as const;
+}
+
+function isPresent<TValue>(value: TValue | null | undefined): value is TValue {
+  return value !== null && value !== undefined;
 }
 
 function requireValidRoomCode(input: string) {
