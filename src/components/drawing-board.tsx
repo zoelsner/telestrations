@@ -43,7 +43,7 @@ const colorLabels: Record<DrawingColor, string> = {
   "#7c3aed": "purple",
 };
 
-type ExportStatus =
+export type DrawingBoardExportStatus =
   | {
       kind: "empty";
     }
@@ -56,9 +56,20 @@ type ExportStatus =
       width: number;
     };
 
+export type DrawingBoardValue = {
+  exportStatus: DrawingBoardExportStatus;
+  strokes: DrawingStroke[];
+};
+
 let fallbackStrokeId = 0;
 
-export function DrawingBoard() {
+export function DrawingBoard({
+  disabled = false,
+  onChange,
+}: {
+  disabled?: boolean;
+  onChange?: (value: DrawingBoardValue) => void;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const activeStrokeRef = useRef<DrawingStroke | null>(null);
   const [activeStroke, setActiveStroke] = useState<DrawingStroke | null>(null);
@@ -71,7 +82,7 @@ export function DrawingBoard() {
     [activeStroke, history.strokes],
   );
 
-  const exportStatus = useMemo<ExportStatus>(() => {
+  const exportStatus = useMemo<DrawingBoardExportStatus>(() => {
     if (history.strokes.length === 0 || typeof document === "undefined") {
       return { kind: "empty" };
     }
@@ -88,6 +99,13 @@ export function DrawingBoard() {
 
     renderDrawing(canvas, visibleStrokes);
   }, [visibleStrokes]);
+
+  useEffect(() => {
+    onChange?.({
+      exportStatus,
+      strokes: history.strokes,
+    });
+  }, [exportStatus, history.strokes, onChange]);
 
   const endActiveStroke = useCallback((event: ReactPointerEvent<HTMLCanvasElement>) => {
     const stroke = activeStrokeRef.current;
@@ -107,6 +125,10 @@ export function DrawingBoard() {
   }, []);
 
   function handlePointerDown(event: ReactPointerEvent<HTMLCanvasElement>) {
+    if (disabled) {
+      return;
+    }
+
     if (event.pointerType === "mouse" && event.button !== 0) {
       return;
     }
@@ -128,6 +150,10 @@ export function DrawingBoard() {
   }
 
   function handlePointerMove(event: ReactPointerEvent<HTMLCanvasElement>) {
+    if (disabled) {
+      return;
+    }
+
     const stroke = activeStrokeRef.current;
 
     if (!stroke) {
@@ -160,26 +186,27 @@ export function DrawingBoard() {
           <IconButton
             aria-pressed="true"
             className="text-[var(--app-foreground)]"
+            disabled={disabled}
             label="Brush tool"
           >
             <Brush size={17} />
           </IconButton>
           <IconButton
-            disabled={!history.canUndo}
+            disabled={disabled || !history.canUndo}
             label="Undo stroke"
             onClick={() => setHistory(undoDrawingChange)}
           >
             <Undo2 size={17} />
           </IconButton>
           <IconButton
-            disabled={!history.canRedo}
+            disabled={disabled || !history.canRedo}
             label="Redo stroke"
             onClick={() => setHistory(redoDrawingChange)}
           >
             <Redo2 size={17} />
           </IconButton>
           <IconButton
-            disabled={history.strokes.length === 0}
+            disabled={disabled || history.strokes.length === 0}
             label="Clear drawing"
             onClick={() => setHistory(clearDrawing)}
           >
@@ -193,6 +220,7 @@ export function DrawingBoard() {
               aria-label={`Use ${colorLabels[swatch]}`}
               aria-pressed={color === swatch}
               className="h-10 w-10 shrink-0 rounded-full border border-black/10 ring-offset-2 transition focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)] sm:h-7 sm:w-7"
+              disabled={disabled}
               key={swatch}
               onClick={() => setColor(swatch)}
               style={{
@@ -216,6 +244,7 @@ export function DrawingBoard() {
                   ? "border-[var(--app-foreground)] bg-[var(--app-foreground)] text-white"
                   : "border-[var(--app-border)] bg-white text-[var(--app-muted)] hover:bg-[var(--app-soft)]"
               }`}
+              disabled={disabled}
               key={size}
               onClick={() => setBrushSize(size)}
               type="button"
@@ -330,7 +359,7 @@ function renderStroke(context: CanvasRenderingContext2D, stroke: DrawingStroke) 
   context.stroke();
 }
 
-function createPngExport(strokes: DrawingStroke[]): ExportStatus {
+function createPngExport(strokes: DrawingStroke[]): DrawingBoardExportStatus {
   const canvas = document.createElement("canvas");
   canvas.width = CANVAS_SIZE.width;
   canvas.height = CANVAS_SIZE.height;
