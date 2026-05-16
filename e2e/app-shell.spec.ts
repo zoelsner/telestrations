@@ -51,6 +51,46 @@ test.describe("app shell", () => {
     await expectNoHorizontalOverflow(page);
   });
 
+  test("supports a local drawing stroke with undo, redo, clear, and PNG export", async ({
+    page,
+  }) => {
+    await page.goto("/");
+
+    const canvas = page.getByTestId("drawing-canvas-element");
+    await expect(canvas).toBeVisible();
+
+    const box = await canvas.boundingBox();
+    expect(box).not.toBeNull();
+
+    if (box === null) {
+      return;
+    }
+
+    await expect(page.getByTestId("drawing-status")).toContainText("0 strokes");
+
+    await page.mouse.move(box.x + box.width * 0.25, box.y + box.height * 0.35);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * 0.65, box.y + box.height * 0.55, { steps: 8 });
+    await page.mouse.up();
+
+    await expect(page.getByTestId("drawing-status")).toContainText("1 stroke");
+    const exportStatus = page.getByTestId("drawing-export-status");
+    await expect(exportStatus).toContainText("PNG ready");
+    await expect(exportStatus).toHaveAttribute("data-mime-type", "image/png");
+
+    await page.getByRole("button", { name: "Undo stroke" }).click();
+    await expect(page.getByTestId("drawing-status")).toContainText("0 strokes");
+
+    await page.getByRole("button", { name: "Redo stroke" }).click();
+    await expect(page.getByTestId("drawing-status")).toContainText("1 stroke");
+
+    await page.getByRole("button", { name: "Clear drawing" }).click();
+    await expect(page.getByTestId("drawing-status")).toContainText("0 strokes");
+
+    await page.getByRole("button", { name: "Undo stroke" }).click();
+    await expect(page.getByTestId("drawing-status")).toContainText("1 stroke");
+  });
+
   test("renders the room route shell", async ({ page }) => {
     await page.goto("/room/F7K2");
 

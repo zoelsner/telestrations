@@ -22,13 +22,19 @@ export function Button({ className = "", variant = "secondary", ...props }: Butt
   );
 }
 
-export function IconButton({ children, label }: { children: ReactNode; label: string }) {
+type IconButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  children: ReactNode;
+  label: string;
+};
+
+export function IconButton({ children, className = "", label, ...props }: IconButtonProps) {
   return (
     <button
       aria-label={label}
-      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[var(--app-border)] bg-white text-[var(--app-muted)] transition hover:bg-[var(--app-soft)] hover:text-[var(--app-foreground)] focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)] sm:h-9 sm:w-9"
+      className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[var(--app-border)] bg-white text-[var(--app-muted)] transition hover:bg-[var(--app-soft)] hover:text-[var(--app-foreground)] focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)] disabled:cursor-not-allowed disabled:opacity-40 sm:h-9 sm:w-9 ${className}`}
       title={label}
       type="button"
+      {...props}
     >
       {children}
     </button>
