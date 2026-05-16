@@ -17,6 +17,7 @@ import type { ReactNode } from "react";
 
 import { Button, IconButton, Panel, TextInput } from "@/components/ui";
 import { activeTaskPreview } from "@/domain/active-task-preview";
+import { CreateRoomForm } from "./create-room-form";
 
 const players = [
   { name: "Maya", state: "Ready" },
@@ -43,6 +44,8 @@ const swatches = [
 ];
 
 export default function Home() {
+  const convexConfigured = Boolean(process.env.NEXT_PUBLIC_CONVEX_URL);
+
   return (
     <main className="min-h-screen bg-[var(--app-background)] text-[var(--app-foreground)]">
       <div className="mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-4 py-5 sm:px-6 lg:px-8">
@@ -133,6 +136,11 @@ export default function Home() {
           </Panel>
 
           <div className="grid gap-4">
+            <Panel className="p-4">
+              <SectionHeader label="Create room" meta="Live" />
+              <CreateRoomForm convexConfigured={convexConfigured} />
+            </Panel>
+
             <Panel className="p-4">
               <SectionHeader
                 label="Guess state"
