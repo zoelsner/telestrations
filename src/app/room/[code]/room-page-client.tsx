@@ -690,6 +690,17 @@ function timerOptionLabel(seconds: number) {
   return `${seconds / 60} min`;
 }
 
+function promptModeLabel(mode: "player-written" | "safe-pack") {
+  return mode === "safe-pack" ? "App prompt pack" : "Players write prompts";
+}
+
+function promptPackLabel(
+  options: Lobby["room"]["settings"]["promptPackOptions"],
+  promptPackId: string,
+) {
+  return options.find((option) => option.id === promptPackId)?.label ?? "Mixed";
+}
+
 function RoundProgressCell({ label, value }: { label: string; value: number }) {
   return (
     <div className="min-w-16 border-r border-[var(--app-border)] px-3 py-2 last:border-r-0">
@@ -940,7 +951,15 @@ function PlayerStatus({
           : "Keep this tab open. Refresh will restore this player slot."}
       </p>
       {!gameStarted ? (
-        <TimerSettingsPanel code={code} isHost={isHost} lobby={lobby} playerToken={playerToken} />
+        <>
+          <PromptSettingsPanel
+            code={code}
+            isHost={isHost}
+            lobby={lobby}
+            playerToken={playerToken}
+          />
+          <TimerSettingsPanel code={code} isHost={isHost} lobby={lobby} playerToken={playerToken} />
+        </>
       ) : null}
       {isHost && !gameStarted ? (
         <>
@@ -960,6 +979,159 @@ function PlayerStatus({
         </>
       ) : null}
     </div>
+  );
+}
+
+function PromptSettingsPanel({
+  code,
+  isHost,
+  lobby,
+  playerToken,
+}: {
+  code: string;
+  isHost: boolean;
+  lobby: Lobby;
+  playerToken: string;
+}) {
+  const updatePromptSettings = useMutation(api.rooms.updatePromptSettings);
+  const [error, setError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const promptMode =
+    lobby.room.settings.promptMode === "safe-pack" ? "safe-pack" : "player-written";
+  const promptPackOptions = lobby.room.settings.promptPackOptions;
+  const selectedPromptPackId = lobby.room.settings.promptPackId;
+  const promptPackId =
+    selectedPromptPackId && promptPackOptions.some((option) => option.id === selectedPromptPackId)
+      ? selectedPromptPackId
+      : "mixed";
+
+  async function savePromptSettings({
+    nextPromptMode,
+    nextPromptPackId,
+  }: {
+    nextPromptMode: "player-written" | "safe-pack";
+    nextPromptPackId: string;
+  }) {
+    setError(null);
+    setIsSaving(true);
+
+    try {
+      await updatePromptSettings({
+        code,
+        playerToken,
+        promptMode: nextPromptMode,
+        ...(nextPromptMode === "safe-pack" ? { promptPackId: nextPromptPackId } : {}),
+      });
+    } catch (caughtError) {
+      setError(errorMessage(caughtError, "Could not update prompt settings."));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  if (!isHost) {
+    return (
+      <div className="grid gap-2 rounded-md bg-[var(--app-soft)] p-3 text-sm">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[var(--app-muted)]">Prompt source</span>
+          <span className="text-right font-medium">{promptModeLabel(promptMode)}</span>
+        </div>
+        {promptMode === "safe-pack" ? (
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[var(--app-muted)]">Prompt theme</span>
+            <span className="text-right font-medium">
+              {promptPackLabel(promptPackOptions, promptPackId)}
+            </span>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-3 rounded-md bg-[var(--app-soft)] p-3">
+      <PromptModeSelect
+        disabled={isSaving}
+        onChange={(nextPromptMode) =>
+          savePromptSettings({
+            nextPromptMode,
+            nextPromptPackId: promptPackId,
+          })
+        }
+        value={promptMode}
+      />
+      {promptMode === "safe-pack" ? (
+        <PromptPackSelect
+          disabled={isSaving}
+          onChange={(nextPromptPackId) =>
+            savePromptSettings({
+              nextPromptMode: promptMode,
+              nextPromptPackId,
+            })
+          }
+          options={promptPackOptions}
+          value={promptPackId}
+        />
+      ) : null}
+      {error ? <ErrorText message={error} /> : null}
+    </div>
+  );
+}
+
+function PromptModeSelect({
+  disabled,
+  onChange,
+  value,
+}: {
+  disabled: boolean;
+  onChange: (value: "player-written" | "safe-pack") => void;
+  value: "player-written" | "safe-pack";
+}) {
+  return (
+    <label className="grid gap-1 text-xs font-medium uppercase text-[var(--app-muted)]">
+      Prompt source
+      <select
+        className="h-10 rounded-md border border-[var(--app-border)] bg-white px-3 text-sm font-medium normal-case text-[var(--app-foreground)] focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)]"
+        disabled={disabled}
+        onChange={(event) =>
+          onChange(event.target.value === "safe-pack" ? "safe-pack" : "player-written")
+        }
+        value={value}
+      >
+        <option value="player-written">{promptModeLabel("player-written")}</option>
+        <option value="safe-pack">{promptModeLabel("safe-pack")}</option>
+      </select>
+    </label>
+  );
+}
+
+function PromptPackSelect({
+  disabled,
+  onChange,
+  options,
+  value,
+}: {
+  disabled: boolean;
+  onChange: (value: string) => void;
+  options: Lobby["room"]["settings"]["promptPackOptions"];
+  value: string;
+}) {
+  return (
+    <label className="grid gap-1 text-xs font-medium uppercase text-[var(--app-muted)]">
+      Prompt theme
+      <select
+        className="h-10 rounded-md border border-[var(--app-border)] bg-white px-3 text-sm font-medium normal-case text-[var(--app-foreground)] focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)]"
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+        value={value}
+      >
+        {options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 

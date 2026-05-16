@@ -51,6 +51,48 @@ test.describe("multiplayer game loop", () => {
     }
   });
 
+  test("starts directly on drawing when the host selects an app prompt pack", async ({
+    browser,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "chromium-desktop", "Run prompt pack path once");
+
+    const hostContext = await browser.newContext();
+    const guestOneContext = await browser.newContext();
+    const guestTwoContext = await browser.newContext();
+
+    try {
+      const host = await hostContext.newPage();
+      const guestOne = await guestOneContext.newPage();
+      const guestTwo = await guestTwoContext.newPage();
+
+      await host.goto("/");
+      await host.getByPlaceholder("Maya").fill("Prompt Host");
+      await host.getByRole("button", { name: "Create room" }).click();
+      await expect(host).toHaveURL(/\/room\/[A-Z2-9]{4}$/);
+
+      const roomUrl = host.url();
+
+      await joinRoom(guestOne, roomUrl, "Prompt Two");
+      await joinRoom(guestTwo, roomUrl, "Prompt Three");
+
+      await host.getByLabel("Prompt source").selectOption({ label: "App prompt pack" });
+      await expect(host.getByLabel("Prompt theme")).toBeVisible();
+      await host.getByLabel("Prompt theme").selectOption({ label: "Food" });
+      await expect(host.getByLabel("Prompt theme")).toHaveValue("food");
+
+      await host.getByRole("button", { name: "Start game" }).click();
+
+      await expect(host.getByRole("heading", { name: "Draw this" })).toBeVisible();
+      await expect(host.getByText("Previous prompt")).toBeVisible();
+      await expect(host.getByRole("button", { name: "Submit prompt" })).toHaveCount(0);
+      await expect(guestOne.getByRole("heading", { name: "Draw this" })).toBeVisible();
+    } finally {
+      await hostContext.close();
+      await guestOneContext.close();
+      await guestTwoContext.close();
+    }
+  });
+
   test("creates, joins, starts, submits, advances, and reveals", async ({ browser }, testInfo) => {
     test.skip(testInfo.project.name !== "chromium-desktop", "Run the full multiplayer path once");
 
