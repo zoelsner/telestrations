@@ -1,4 +1,4 @@
-import type { EntryType } from "./game-state";
+import type { AssignmentStatus, EntryType } from "./game-state";
 
 export const MIN_PLAYERS_PER_GAME = 3;
 
@@ -30,6 +30,11 @@ export type NextPhase =
   | {
       status: "reveal";
     };
+
+export type TurnCompletionAssignment = {
+  status: AssignmentStatus;
+  submittedEntryId?: string | null;
+};
 
 export function finalTurnForPlayerCount(playerCount: number) {
   assertPlayerCount(playerCount);
@@ -114,6 +119,30 @@ export function nextPhaseAfterCompletedTurn({
     status: "active",
     turn,
   };
+}
+
+export function isTurnComplete({
+  assignments,
+  expectedAssignmentCount,
+}: {
+  assignments: TurnCompletionAssignment[];
+  expectedAssignmentCount: number;
+}) {
+  if (
+    !Number.isInteger(expectedAssignmentCount) ||
+    expectedAssignmentCount < MIN_PLAYERS_PER_GAME ||
+    assignments.length !== expectedAssignmentCount
+  ) {
+    return false;
+  }
+
+  return assignments.every((assignment) => {
+    if (assignment.status === "submitted") {
+      return Boolean(assignment.submittedEntryId);
+    }
+
+    return assignment.status === "skipped" || assignment.status === "expired";
+  });
 }
 
 function assertPlayerCount(playerCount: number) {
