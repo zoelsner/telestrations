@@ -4,12 +4,14 @@ import type { Doc } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
 import { MAX_PLAYERS_PER_ROOM } from "../src/domain/game-state";
+import { buildTurnAssignments } from "../src/domain/rotation";
 import {
   generateRoomCode,
   validateDisplayName,
   validatePlayerToken,
   validateRoomCode,
 } from "../src/domain/room-join";
+import { getStartGameGate } from "../src/domain/start-game";
 
 const roomResult = v.object({
   roomId: v.id("rooms"),
@@ -17,6 +19,15 @@ const roomResult = v.object({
   code: v.string(),
   sharePath: v.string(),
   isHost: v.boolean(),
+});
+
+const startGameResult = v.object({
+  roomId: v.id("rooms"),
+  code: v.string(),
+  currentTurn: v.number(),
+  currentEntryType: v.literal("prompt"),
+  chainCount: v.number(),
+  assignmentCount: v.number(),
 });
 
 type RoomLookupCtx = {
@@ -214,6 +225,103 @@ export const getLobby = query({
   },
 });
 
+export const startGame = mutation({
+  args: {
+    code: v.string(),
+    playerToken: v.string(),
+  },
+  returns: startGameResult,
+  handler: async (ctx, args) => {
+    const code = requireValidRoomCode(args.code);
+    const tokenHash = await requireValidTokenHash(args.playerToken);
+    const now = Date.now();
+    const room = await getRoomByCode(ctx, code);
+
+    if (!room) {
+      throw roomError("room_not_found", "Room not found.");
+    }
+
+    const currentPlayer = await getPlayerByTokenHash(ctx, room._id, tokenHash);
+    const players = (await getPlayersByRoom(ctx, room._id)).filter(
+      (player) => player.status !== "removed",
+    );
+    const existingChains = await ctx.db
+      .query("chains")
+      .withIndex("by_room", (q) => q.eq("roomId", room._id))
+      .collect();
+    const startGate = getStartGameGate({
+      existingChainCount: existingChains.length,
+      isHost: currentPlayer?.isHost === true,
+      playerCount: players.length,
+      roomStatus: room.status,
+    });
+
+    if (!startGate.ok) {
+      throw roomError(startGate.code, startGate.message);
+    }
+
+    const chainRecords = [];
+
+    for (const player of players) {
+      const chainId = await ctx.db.insert("chains", {
+        roomId: room._id,
+        ownerPlayerId: player._id,
+        order: player.order,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      chainRecords.push({
+        id: chainId,
+        order: player.order,
+      });
+    }
+
+    const assignments = buildTurnAssignments({
+      chains: chainRecords,
+      players: players.map((player) => ({
+        id: player._id,
+        order: player.order,
+      })),
+      turn: 0,
+    });
+    const playerByOrder = new Map(players.map((player) => [player.order, player]));
+    const chainByOrder = new Map(chainRecords.map((chain) => [chain.order, chain]));
+
+    for (const assignment of assignments) {
+      const player = requireOrderValue(playerByOrder, assignment.playerOrder, "player");
+      const chain = requireOrderValue(chainByOrder, assignment.chainOrder, "chain");
+
+      await ctx.db.insert("assignments", {
+        roomId: room._id,
+        playerId: player._id,
+        chainId: chain.id,
+        turn: assignment.turn,
+        entryType: assignment.entryType,
+        status: "pending",
+        assignedAt: now,
+      });
+    }
+
+    await ctx.db.patch(room._id, {
+      status: "active",
+      currentTurn: 0,
+      currentEntryType: "prompt",
+      startedAt: now,
+      updatedAt: now,
+    });
+
+    return {
+      roomId: room._id,
+      code: room.code,
+      currentTurn: 0,
+      currentEntryType: "prompt" as const,
+      chainCount: chainRecords.length,
+      assignmentCount: assignments.length,
+    };
+  },
+});
+
 async function createUniqueRoomCode(ctx: RoomLookupCtx) {
   for (let attempts = 0; attempts < 10; attempts += 1) {
     const code = generateRoomCode(randomIndex);
@@ -232,6 +340,38 @@ async function getRoomByCode(ctx: RoomLookupCtx, code: string): Promise<Doc<"roo
     .query("rooms")
     .withIndex("by_code", (q) => q.eq("code", code))
     .unique();
+}
+
+async function getPlayersByRoom(ctx: RoomLookupCtx, roomId: Doc<"rooms">["_id"]) {
+  return await ctx.db
+    .query("players")
+    .withIndex("by_room_order", (q) => q.eq("roomId", roomId))
+    .collect();
+}
+
+async function getPlayerByTokenHash(
+  ctx: RoomLookupCtx,
+  roomId: Doc<"rooms">["_id"],
+  tokenHash: string,
+) {
+  return await ctx.db
+    .query("players")
+    .withIndex("by_room_token", (q) => q.eq("roomId", roomId).eq("tokenHash", tokenHash))
+    .unique();
+}
+
+function requireOrderValue<TValue>(
+  valuesByOrder: Map<number, TValue>,
+  order: number,
+  label: string,
+) {
+  const value = valuesByOrder.get(order);
+
+  if (!value) {
+    throw roomError("invalid_rotation", `Missing ${label} order ${order}.`);
+  }
+
+  return value;
 }
 
 function requireValidRoomCode(input: string) {

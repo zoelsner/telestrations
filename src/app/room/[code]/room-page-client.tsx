@@ -1,14 +1,17 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
-import { Crown, DoorOpen, Loader2, RefreshCw, UserRound } from "lucide-react";
+import { Crown, DoorOpen, Loader2, Play, RefreshCw, UserRound } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, useState, useSyncExternalStore } from "react";
 
 import { api } from "../../../../convex/_generated/api";
 import { Button, Panel, TextInput } from "@/components/ui";
 import { normalizeRoomCode, validateDisplayName } from "@/domain/room-join";
+import { getStartGameGate } from "@/domain/start-game";
 import { getOrCreatePlayerToken } from "../../room-session";
+
+type Lobby = NonNullable<ReturnType<typeof useQuery<typeof api.rooms.getLobby>>>;
 
 export function RoomPageClient({
   code,
@@ -64,7 +67,7 @@ function RoomPageLive({ code }: { code: string }) {
             ) : lobby === null ? (
               <MissingRoom code={code} />
             ) : lobby.currentPlayer ? (
-              <PlayerStatus isHost={lobby.currentPlayer.isHost} />
+              <PlayerStatus code={code} lobby={lobby} playerToken={playerToken} />
             ) : (
               <JoinRoomForm code={code} playerToken={playerToken} />
             )}
@@ -87,11 +90,7 @@ function emptySubscribe() {
   return () => {};
 }
 
-function LobbyView({
-  lobby,
-}: {
-  lobby: NonNullable<ReturnType<typeof useQuery<typeof api.rooms.getLobby>>>;
-}) {
+function LobbyView({ lobby }: { lobby: Lobby }) {
   return (
     <div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -187,13 +186,69 @@ function JoinRoomForm({ code, playerToken }: { code: string; playerToken: string
   );
 }
 
-function PlayerStatus({ isHost }: { isHost: boolean }) {
+function PlayerStatus({
+  code,
+  lobby,
+  playerToken,
+}: {
+  code: string;
+  lobby: Lobby;
+  playerToken: string;
+}) {
+  const startGame = useMutation(api.rooms.startGame);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isHost = lobby.currentPlayer?.isHost === true;
+  const startGate = getStartGameGate({
+    existingChainCount: 0,
+    isHost,
+    playerCount: lobby.room.playerCount,
+    roomStatus: lobby.room.status,
+  });
+  const gameStarted = lobby.room.status === "active" || lobby.room.status === "reveal";
+
+  async function handleStartGame() {
+    if (!startGate.ok || isSubmitting) {
+      return;
+    }
+
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      await startGame({ code, playerToken });
+    } catch (caughtError) {
+      setError(errorMessage(caughtError));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
-    <div>
+    <div className="grid gap-3">
       <h2 className="text-sm font-semibold">{isHost ? "Host ready" : "Joined"}</h2>
       <p className="mt-1 text-sm leading-6 text-[var(--app-muted)]">
-        Keep this tab open. Refresh will restore this player slot.
+        {gameStarted
+          ? "Game is active. Keep this tab open while the round runs."
+          : "Keep this tab open. Refresh will restore this player slot."}
       </p>
+      {isHost && !gameStarted ? (
+        <>
+          <Button
+            className="w-full"
+            disabled={!startGate.ok || isSubmitting}
+            onClick={handleStartGame}
+            variant="primary"
+          >
+            {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <Play size={16} />}
+            Start game
+          </Button>
+          {!startGate.ok ? (
+            <p className="text-sm leading-6 text-[var(--app-muted)]">{startGate.message}</p>
+          ) : null}
+          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+        </>
+      ) : null}
     </div>
   );
 }
