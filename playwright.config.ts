@@ -14,9 +14,10 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: "npm run dev -- --hostname 127.0.0.1 --port 3000",
+    command: "node scripts/e2e-dev-server.mjs",
+    gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000,
   },
   projects: [
