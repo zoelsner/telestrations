@@ -167,6 +167,64 @@ const activeTaskResult = v.union(
   }),
 );
 
+const revealEntryResult = v.union(
+  v.object({
+    authorName: v.string(),
+    id: v.id("entries"),
+    text: v.string(),
+    turn: v.number(),
+    type: v.literal("prompt"),
+  }),
+  v.object({
+    authorName: v.string(),
+    id: v.id("entries"),
+    imageUrl: v.optional(v.string()),
+    turn: v.number(),
+    type: v.literal("drawing"),
+  }),
+  v.object({
+    authorName: v.string(),
+    id: v.id("entries"),
+    text: v.string(),
+    turn: v.number(),
+    type: v.literal("guess"),
+  }),
+);
+
+const revealResult = v.union(
+  v.null(),
+  v.object({
+    chains: v.array(
+      v.object({
+        entries: v.array(revealEntryResult),
+        id: v.id("chains"),
+        order: v.number(),
+        ownerName: v.string(),
+      }),
+    ),
+    currentPlayer: v.union(
+      v.null(),
+      v.object({
+        id: v.id("players"),
+        displayName: v.string(),
+        isHost: v.boolean(),
+      }),
+    ),
+    room: v.object({
+      code: v.string(),
+      currentTurn: v.number(),
+      id: v.id("rooms"),
+      status: v.union(
+        v.literal("setup"),
+        v.literal("lobby"),
+        v.literal("active"),
+        v.literal("reveal"),
+        v.literal("archived"),
+      ),
+    }),
+  }),
+);
+
 type RoomLookupCtx = {
   db: QueryCtx["db"] | MutationCtx["db"];
 };
@@ -427,6 +485,56 @@ export const getActiveTask = query({
         submittedCount: roundAssignments.filter((assignment) => assignment.status === "submitted")
           .length,
         totalCount: roundAssignments.length,
+      },
+    };
+  },
+});
+
+export const getReveal = query({
+  args: {
+    code: v.string(),
+    playerToken: v.string(),
+  },
+  returns: revealResult,
+  handler: async (ctx, args) => {
+    const codeResult = validateRoomCode(args.code);
+
+    if (!codeResult.ok) {
+      return null;
+    }
+
+    const tokenHash = await requireValidTokenHash(args.playerToken);
+    const room = await getRoomByCode(ctx, codeResult.value);
+
+    if (!room) {
+      return null;
+    }
+
+    const players = await getPlayersByRoom(ctx, room._id);
+    const playersById = new Map(players.map((player) => [player._id, player]));
+    const currentPlayer =
+      players.find((player) => player.tokenHash === tokenHash && player.status !== "removed") ??
+      null;
+    const chains =
+      room.status === "reveal" || room.status === "archived"
+        ? await getRevealChains(ctx, room._id, playersById)
+        : [];
+
+    return {
+      chains,
+      currentPlayer:
+        currentPlayer === null
+          ? null
+          : {
+              id: currentPlayer._id,
+              displayName: currentPlayer.displayName,
+              isHost: currentPlayer.isHost,
+            },
+      room: {
+        code: room.code,
+        currentTurn: room.currentTurn,
+        id: room._id,
+        status: room.status,
       },
     };
   },
@@ -887,6 +995,56 @@ async function getPreviousEntryForAssignment(
   };
 }
 
+async function getRevealChains(
+  ctx: QueryCtx,
+  roomId: Doc<"rooms">["_id"],
+  playersById: Map<Doc<"players">["_id"], Doc<"players">>,
+) {
+  const chains = await getChainsByRoom(ctx, roomId);
+  const revealChains = [];
+
+  for (const chain of chains) {
+    const entries = await ctx.db
+      .query("entries")
+      .withIndex("by_chain_turn", (q) => q.eq("chainId", chain._id))
+      .collect();
+    const revealEntries = [];
+
+    for (const entry of entries) {
+      const authorName = playerName(playersById, entry.authorPlayerId);
+
+      if (entry.payload.type === "drawing") {
+        const imageUrl = await ctx.storage.getUrl(entry.payload.drawing.artifact.storageId);
+
+        revealEntries.push({
+          authorName,
+          id: entry._id,
+          ...(imageUrl === null ? {} : { imageUrl }),
+          turn: entry.turn,
+          type: "drawing" as const,
+        });
+      } else {
+        revealEntries.push({
+          authorName,
+          id: entry._id,
+          text: entry.payload.text,
+          turn: entry.turn,
+          type: entry.payload.type,
+        });
+      }
+    }
+
+    revealChains.push({
+      entries: revealEntries.sort((left, right) => left.turn - right.turn),
+      id: chain._id,
+      order: chain.order,
+      ownerName: playerName(playersById, chain.ownerPlayerId),
+    });
+  }
+
+  return revealChains.sort((left, right) => left.order - right.order);
+}
+
 async function getAssignmentByPlayerTurn(
   ctx: RoomLookupCtx,
   playerId: Doc<"players">["_id"],
@@ -896,6 +1054,13 @@ async function getAssignmentByPlayerTurn(
     .query("assignments")
     .withIndex("by_player_turn", (q) => q.eq("playerId", playerId).eq("turn", turn))
     .unique();
+}
+
+function playerName(
+  playersById: Map<Doc<"players">["_id"], Doc<"players">>,
+  playerId: Doc<"players">["_id"],
+) {
+  return playersById.get(playerId)?.displayName ?? "Unknown player";
 }
 
 function requireOrderValue<TValue>(
