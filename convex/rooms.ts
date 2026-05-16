@@ -101,6 +101,72 @@ const submitEntryResult = v.object({
   type: v.union(v.literal("prompt"), v.literal("drawing"), v.literal("guess")),
 });
 
+const activeTaskPreviousEntryResult = v.union(
+  v.object({
+    kind: v.literal("text"),
+    label: v.union(v.literal("Previous prompt"), v.literal("Previous guess")),
+    turn: v.number(),
+    value: v.string(),
+  }),
+  v.object({
+    imageUrl: v.string(),
+    kind: v.literal("drawing"),
+    label: v.literal("Previous drawing"),
+    turn: v.number(),
+  }),
+);
+
+const activeTaskResult = v.union(
+  v.null(),
+  v.object({
+    assignment: v.union(
+      v.null(),
+      v.object({
+        id: v.id("assignments"),
+        entryType: v.union(v.literal("prompt"), v.literal("drawing"), v.literal("guess")),
+        previousEntry: v.optional(activeTaskPreviousEntryResult),
+        status: v.union(
+          v.literal("pending"),
+          v.literal("submitted"),
+          v.literal("skipped"),
+          v.literal("expired"),
+        ),
+        submittedEntryId: v.optional(v.id("entries")),
+        turn: v.number(),
+      }),
+    ),
+    currentPlayer: v.union(
+      v.null(),
+      v.object({
+        id: v.id("players"),
+        displayName: v.string(),
+        isHost: v.boolean(),
+        status: v.union(v.literal("connected"), v.literal("disconnected"), v.literal("removed")),
+      }),
+    ),
+    room: v.object({
+      code: v.string(),
+      currentEntryType: v.optional(
+        v.union(v.literal("prompt"), v.literal("drawing"), v.literal("guess")),
+      ),
+      currentTurn: v.number(),
+      id: v.id("rooms"),
+      status: v.union(
+        v.literal("setup"),
+        v.literal("lobby"),
+        v.literal("active"),
+        v.literal("reveal"),
+        v.literal("archived"),
+      ),
+    }),
+    round: v.object({
+      pendingCount: v.number(),
+      submittedCount: v.number(),
+      totalCount: v.number(),
+    }),
+  }),
+);
+
 type RoomLookupCtx = {
   db: QueryCtx["db"] | MutationCtx["db"];
 };
@@ -296,6 +362,76 @@ export const getLobby = query({
   },
 });
 
+export const getActiveTask = query({
+  args: {
+    code: v.string(),
+    playerToken: v.string(),
+  },
+  returns: activeTaskResult,
+  handler: async (ctx, args) => {
+    const codeResult = validateRoomCode(args.code);
+
+    if (!codeResult.ok) {
+      return null;
+    }
+
+    const tokenHash = await requireValidTokenHash(args.playerToken);
+    const room = await getRoomByCode(ctx, codeResult.value);
+
+    if (!room) {
+      return null;
+    }
+
+    const currentPlayer = await getPlayerByTokenHash(ctx, room._id, tokenHash);
+    const assignment =
+      currentPlayer === null || currentPlayer.status === "removed"
+        ? null
+        : await getAssignmentByPlayerTurn(ctx, currentPlayer._id, room.currentTurn);
+    const roundAssignments = await getAssignmentsByRoomTurn(ctx, room._id, room.currentTurn);
+    const previousEntry =
+      assignment === null ? undefined : await getPreviousEntryForAssignment(ctx, assignment);
+
+    return {
+      assignment:
+        assignment === null
+          ? null
+          : {
+              id: assignment._id,
+              entryType: assignment.entryType,
+              ...(previousEntry === undefined ? {} : { previousEntry }),
+              status: assignment.status,
+              ...(assignment.submittedEntryId === undefined
+                ? {}
+                : { submittedEntryId: assignment.submittedEntryId }),
+              turn: assignment.turn,
+            },
+      currentPlayer:
+        currentPlayer === null
+          ? null
+          : {
+              id: currentPlayer._id,
+              displayName: currentPlayer.displayName,
+              isHost: currentPlayer.isHost,
+              status: currentPlayer.status,
+            },
+      room: {
+        code: room.code,
+        ...(room.currentEntryType === undefined ? {} : { currentEntryType: room.currentEntryType }),
+        currentTurn: room.currentTurn,
+        id: room._id,
+        status: room.status,
+      },
+      round: {
+        pendingCount: roundAssignments.filter((assignment) => assignment.status === "pending")
+          .length,
+        submittedCount: roundAssignments.filter((assignment) => assignment.status === "submitted")
+          .length,
+        totalCount: roundAssignments.length,
+      },
+    };
+  },
+});
+
 export const startGame = mutation({
   args: {
     code: v.string(),
@@ -390,6 +526,49 @@ export const startGame = mutation({
       chainCount: chainRecords.length,
       assignmentCount: assignments.length,
     };
+  },
+});
+
+export const generateDrawingUploadUrl = mutation({
+  args: {
+    code: v.string(),
+    playerToken: v.string(),
+  },
+  returns: v.string(),
+  handler: async (ctx, args) => {
+    const code = requireValidRoomCode(args.code);
+    const tokenHash = await requireValidTokenHash(args.playerToken);
+    const room = await getRoomByCode(ctx, code);
+
+    if (!room) {
+      throw roomError("room_not_found", "Room not found.");
+    }
+
+    const currentPlayer = await getPlayerByTokenHash(ctx, room._id, tokenHash);
+
+    if (!currentPlayer || currentPlayer.status === "removed") {
+      throw roomError("player_not_found", "Player not found in this room.");
+    }
+
+    const assignment = await getAssignmentByPlayerTurn(ctx, currentPlayer._id, room.currentTurn);
+
+    if (room.status !== "active" || room.currentEntryType !== "drawing") {
+      throw roomError("room_not_active", "This room is not accepting drawing uploads.");
+    }
+
+    if (!assignment) {
+      throw roomError("assignment_not_found", "No active assignment was found.");
+    }
+
+    if (
+      assignment.entryType !== "drawing" ||
+      assignment.status !== "pending" ||
+      assignment.submittedEntryId
+    ) {
+      throw roomError("assignment_not_pending", "This drawing assignment is not pending.");
+    }
+
+    return await ctx.storage.generateUploadUrl();
   },
 });
 
@@ -655,6 +834,57 @@ async function getAssignmentsByRoomTurn(
     .query("assignments")
     .withIndex("by_room_turn", (q) => q.eq("roomId", roomId).eq("turn", turn))
     .collect();
+}
+
+async function getPreviousEntryForAssignment(
+  ctx: QueryCtx,
+  assignment: Doc<"assignments">,
+): Promise<
+  | {
+      kind: "text";
+      label: "Previous prompt" | "Previous guess";
+      turn: number;
+      value: string;
+    }
+  | {
+      imageUrl: string;
+      kind: "drawing";
+      label: "Previous drawing";
+      turn: number;
+    }
+  | undefined
+> {
+  if (assignment.previousEntryId === undefined) {
+    return undefined;
+  }
+
+  const previousEntry = await ctx.db.get(assignment.previousEntryId);
+
+  if (!previousEntry) {
+    return undefined;
+  }
+
+  if (previousEntry.payload.type === "drawing") {
+    const imageUrl = await ctx.storage.getUrl(previousEntry.payload.drawing.artifact.storageId);
+
+    if (imageUrl === null) {
+      return undefined;
+    }
+
+    return {
+      imageUrl,
+      kind: "drawing",
+      label: "Previous drawing",
+      turn: previousEntry.turn,
+    };
+  }
+
+  return {
+    kind: "text",
+    label: previousEntry.payload.type === "prompt" ? "Previous prompt" : "Previous guess",
+    turn: previousEntry.turn,
+    value: previousEntry.payload.text,
+  };
 }
 
 async function getAssignmentByPlayerTurn(
