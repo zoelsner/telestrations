@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 test.describe("app shell", () => {
   test("shows the active draw and guess tasks without reveal history", async ({ page }) => {
@@ -23,12 +23,32 @@ test.describe("app shell", () => {
   test("does not horizontally overflow the viewport", async ({ page }) => {
     await page.goto("/");
 
-    const metrics = await page.evaluate(() => ({
-      clientWidth: document.documentElement.clientWidth,
-      scrollWidth: document.documentElement.scrollWidth,
-    }));
+    await expectNoHorizontalOverflow(page);
+  });
 
-    expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
+  test("keeps the drawing surface mobile-ready", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "chromium-mobile", "Mobile viewport contract");
+
+    await page.goto("/");
+
+    await expect(page.getByTestId("drawing-toolbar")).toBeVisible();
+
+    const canvas = page.getByTestId("drawing-canvas");
+    await expect(canvas).toBeVisible();
+
+    const metrics = await canvas.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+
+      return {
+        canvasWidth: box.width,
+        touchAction: getComputedStyle(element).touchAction,
+        viewportWidth: document.documentElement.clientWidth,
+      };
+    });
+
+    expect(metrics.canvasWidth).toBeLessThanOrEqual(metrics.viewportWidth);
+    expect(metrics.touchAction).toBe("none");
+    await expectNoHorizontalOverflow(page);
   });
 
   test("renders the room route shell", async ({ page }) => {
@@ -37,11 +57,15 @@ test.describe("app shell", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Telestrations" })).toBeVisible();
     await expect(page.getByText("Room F7K2")).toBeVisible();
 
-    const metrics = await page.evaluate(() => ({
-      clientWidth: document.documentElement.clientWidth,
-      scrollWidth: document.documentElement.scrollWidth,
-    }));
-
-    expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
+    await expectNoHorizontalOverflow(page);
   });
 });
+
+async function expectNoHorizontalOverflow(page: Page) {
+  const metrics = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+
+  expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
+}

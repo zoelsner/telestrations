@@ -32,23 +32,23 @@ function RoomPageLive({ code }: { code: string }) {
   const lobby = useQuery(api.rooms.getLobby, playerToken === null ? "skip" : { code, playerToken });
 
   return (
-    <main className="min-h-screen bg-[var(--app-background)] text-[var(--app-foreground)]">
-      <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-5 sm:px-6 lg:px-8">
+    <main className="min-h-svh bg-[var(--app-background)] text-[var(--app-foreground)]">
+      <div className="safe-page-bottom mx-auto flex min-h-svh w-full max-w-5xl flex-col px-4 py-5 sm:px-6 lg:px-8">
         <header className="flex flex-col gap-3 border-b border-[var(--app-border)] pb-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-medium text-[var(--app-muted)]">Room {code}</p>
             <h1 className="text-2xl font-semibold">Telestrations</h1>
           </div>
           <Link
-            className="inline-flex h-10 items-center justify-center rounded-md border border-[var(--app-border)] bg-white px-3 text-sm font-medium transition hover:bg-[var(--app-soft)]"
+            className="inline-flex h-11 w-full items-center justify-center rounded-md border border-[var(--app-border)] bg-white px-3 text-sm font-medium transition hover:bg-[var(--app-soft)] sm:h-10 sm:w-auto"
             href="/"
           >
             Back to app
           </Link>
         </header>
 
-        <section className="grid flex-1 gap-4 py-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <Panel className="p-4">
+        <section className="grid flex-1 gap-4 py-4 sm:py-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <Panel className="order-2 p-4 lg:order-1">
             {lobby === undefined ? (
               <LoadingRoom />
             ) : lobby === null ? (
@@ -58,7 +58,7 @@ function RoomPageLive({ code }: { code: string }) {
             )}
           </Panel>
 
-          <Panel className="p-4">
+          <Panel className="order-1 p-4 lg:order-2">
             {lobby === undefined || playerToken === null ? (
               <LoadingRoom />
             ) : lobby === null ? (
@@ -94,14 +94,14 @@ function LobbyView({
 }) {
   return (
     <div>
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold">Lobby</h2>
           <p className="mt-1 text-sm text-[var(--app-muted)]">
             {lobby.room.playerCount}/{lobby.room.maxPlayers} players joined
           </p>
         </div>
-        <span className="rounded-md bg-[var(--app-soft)] px-2 py-1 text-xs text-[var(--app-muted)]">
+        <span className="w-fit rounded-md bg-[var(--app-soft)] px-2 py-1 text-xs text-[var(--app-muted)]">
           {lobby.room.status}
         </span>
       </div>
@@ -109,7 +109,7 @@ function LobbyView({
       <div className="mt-5 grid gap-2">
         {lobby.players.map((player) => (
           <div
-            className="flex min-h-11 items-center justify-between gap-3 rounded-md bg-[var(--app-soft)] px-3 text-sm"
+            className="flex min-h-12 items-center justify-between gap-3 rounded-md bg-[var(--app-soft)] px-3 py-2 text-sm sm:min-h-11 sm:py-0"
             key={player.id}
           >
             <div className="flex min-w-0 items-center gap-3">
@@ -118,7 +118,7 @@ function LobbyView({
               </span>
               <span className="truncate font-medium">{player.displayName}</span>
               {player.isCurrentPlayer ? (
-                <span className="text-xs text-[var(--app-muted)]">You</span>
+                <span className="shrink-0 text-xs text-[var(--app-muted)]">You</span>
               ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-2 text-xs text-[var(--app-muted)]">
@@ -220,8 +220,8 @@ function MissingRoom({ code }: { code: string }) {
 
 function RoomUnavailable({ code }: { code: string }) {
   return (
-    <main className="min-h-screen bg-[var(--app-background)] text-[var(--app-foreground)]">
-      <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-4 py-5 sm:px-6 lg:px-8">
+    <main className="min-h-svh bg-[var(--app-background)] text-[var(--app-foreground)]">
+      <div className="safe-page-bottom mx-auto flex min-h-svh w-full max-w-3xl flex-col px-4 py-5 sm:px-6 lg:px-8">
         <header className="border-b border-[var(--app-border)] pb-5">
           <p className="text-sm font-medium text-[var(--app-muted)]">Room {code}</p>
           <h1 className="text-2xl font-semibold">Telestrations</h1>
@@ -232,7 +232,7 @@ function RoomUnavailable({ code }: { code: string }) {
             Convex is not configured for this environment.
           </p>
           <Link
-            className="mt-4 inline-flex h-10 items-center justify-center rounded-md border border-[var(--app-border)] bg-white px-3 text-sm font-medium transition hover:bg-[var(--app-soft)]"
+            className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-md border border-[var(--app-border)] bg-white px-3 text-sm font-medium transition hover:bg-[var(--app-soft)] sm:h-10 sm:w-auto"
             href="/"
           >
             Back to app
