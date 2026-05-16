@@ -3,6 +3,7 @@
 import { useMutation, useQuery } from "convex/react";
 import {
   AlertCircle,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -14,6 +15,7 @@ import {
   Play,
   RefreshCw,
   Send,
+  SkipForward,
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
@@ -263,7 +265,12 @@ function ActiveTaskSurface({
           )}
         </div>
       ) : taskView.state === "waiting" ? (
-        <WaitingForTurn round={activeTask.round} />
+        <WaitingForTurn
+          canRecover={activeTask.currentPlayer?.isHost === true}
+          code={code}
+          playerToken={playerToken}
+          round={activeTask.round}
+        />
       ) : (
         <InactiveTaskState title={taskView.title} />
       )}
@@ -458,7 +465,13 @@ function PreviousEntry({ entry }: { entry: ActiveTaskPreviousEntry }) {
   return (
     <section className="border-b border-[var(--app-border)] bg-[var(--app-soft)] px-4 py-3 -mx-4 -mt-4">
       <div className="flex items-center gap-2 text-xs font-medium uppercase text-[var(--app-muted)]">
-        {entry.kind === "drawing" ? <ImageIcon size={14} /> : <Palette size={14} />}
+        {entry.kind === "drawing" ? (
+          <ImageIcon size={14} />
+        ) : entry.kind === "skipped" ? (
+          <SkipForward size={14} />
+        ) : (
+          <Palette size={14} />
+        )}
         <span>
           {entry.label} · Turn {entry.turn}
         </span>
@@ -481,19 +494,119 @@ function PreviousEntry({ entry }: { entry: ActiveTaskPreviousEntry }) {
   );
 }
 
-function WaitingForTurn({ round }: { round: ActiveTask["round"] }) {
+function WaitingForTurn({
+  canRecover,
+  code,
+  playerToken,
+  round,
+}: {
+  canRecover: boolean;
+  code: string;
+  playerToken: string;
+  round: ActiveTask["round"];
+}) {
+  const skipAssignment = useMutation(api.rooms.skipAssignment);
+  const [skippingAssignmentId, setSkippingAssignmentId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSkip(player: ActiveTask["round"]["players"][number]) {
+    if (skippingAssignmentId !== null || player.assignmentStatus !== "pending") {
+      return;
+    }
+
+    setError(null);
+    setSkippingAssignmentId(player.assignmentId);
+
+    try {
+      await skipAssignment({
+        assignmentId: player.assignmentId,
+        code,
+        playerToken,
+      });
+    } catch (caughtError) {
+      setError(errorMessage(caughtError, "Could not skip this assignment."));
+    } finally {
+      setSkippingAssignmentId(null);
+    }
+  }
+
   return (
-    <div className="flex min-h-72 flex-col items-center justify-center gap-4 p-6 text-center">
-      <span className="inline-flex h-12 w-12 items-center justify-center rounded-md bg-[var(--app-soft)] text-[var(--app-muted)]">
-        <Clock3 size={22} />
-      </span>
-      <div>
-        <h2 className="text-xl font-semibold">Waiting for the next turn</h2>
-        <p className="mt-2 text-sm leading-6 text-[var(--app-muted)]">
-          {round.pendingCount}{" "}
-          {round.pendingCount === 1 ? "player still needs" : "players still need"} to submit.
-        </p>
+    <div className="grid gap-5 p-4 sm:p-6">
+      <div className="flex flex-col gap-3 text-center sm:flex-row sm:items-center sm:text-left">
+        <span className="mx-auto inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-[var(--app-soft)] text-[var(--app-muted)] sm:mx-0">
+          <Clock3 size={22} />
+        </span>
+        <div>
+          <h2 className="text-xl font-semibold">Waiting for the next turn</h2>
+          <p className="mt-1 text-sm leading-6 text-[var(--app-muted)]">
+            {round.pendingCount}{" "}
+            {round.pendingCount === 1 ? "player still needs" : "players still need"} to submit.
+          </p>
+        </div>
       </div>
+
+      <section className="grid gap-2" aria-label="Turn status">
+        {round.players.map((player) => {
+          const isPending = player.assignmentStatus === "pending";
+          const isSkipping = skippingAssignmentId === player.assignmentId;
+
+          return (
+            <div
+              className="flex min-h-12 flex-col justify-between gap-3 rounded-md border border-[var(--app-border)] bg-white px-3 py-3 text-sm sm:flex-row sm:items-center"
+              key={player.assignmentId}
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <span
+                  className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${
+                    isPending
+                      ? "bg-[var(--app-soft)] text-[var(--app-muted)]"
+                      : "bg-[var(--app-foreground)] text-white"
+                  }`}
+                >
+                  {isPending ? <Clock3 size={14} /> : <CheckCircle2 size={14} />}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate font-medium">
+                    {player.displayName}
+                    {player.isCurrentPlayer ? (
+                      <span className="ml-2 text-xs font-normal text-[var(--app-muted)]">You</span>
+                    ) : null}
+                  </p>
+                  <p className="text-xs capitalize text-[var(--app-muted)]">
+                    {player.assignmentStatus}
+                    {player.playerStatus !== "connected" ? ` · ${player.playerStatus}` : ""}
+                    {player.isHost ? " · Host" : ""}
+                  </p>
+                </div>
+              </div>
+
+              {canRecover && isPending ? (
+                <Button
+                  aria-label={`Skip ${player.displayName}`}
+                  className="w-full sm:w-fit"
+                  disabled={isSkipping}
+                  onClick={() => handleSkip(player)}
+                >
+                  {isSkipping ? (
+                    <Loader2 className="animate-spin" size={16} />
+                  ) : (
+                    <SkipForward size={16} />
+                  )}
+                  Skip
+                </Button>
+              ) : null}
+            </div>
+          );
+        })}
+      </section>
+
+      {round.skippedCount > 0 ? (
+        <p className="text-sm leading-6 text-[var(--app-muted)]">
+          {round.skippedCount} {round.skippedCount === 1 ? "assignment was" : "assignments were"}{" "}
+          skipped by the host this turn.
+        </p>
+      ) : null}
+      {error ? <ErrorText message={error} /> : null}
     </div>
   );
 }
@@ -512,7 +625,7 @@ function InactiveTaskState({ title }: { title: string }) {
 function RoundProgress({ round }: { round: ActiveTask["round"] }) {
   return (
     <div className="grid grid-cols-3 overflow-hidden rounded-md border border-[var(--app-border)] bg-white text-center text-xs">
-      <RoundProgressCell label="Done" value={round.submittedCount} />
+      <RoundProgressCell label="Done" value={round.completedCount} />
       <RoundProgressCell label="Pending" value={round.pendingCount} />
       <RoundProgressCell label="Total" value={round.totalCount} />
     </div>
@@ -643,7 +756,9 @@ function RevealEntryCard({ entry }: { entry: RevealEntry }) {
         <span>{entry.authorName}</span>
       </div>
 
-      {entry.type === "drawing" ? (
+      {entry.type === "drawing" && "skipped" in entry ? (
+        <p className="mt-3 text-lg font-medium leading-7">{entry.text}</p>
+      ) : entry.type === "drawing" ? (
         entry.imageUrl ? (
           <div className="relative mt-3 aspect-[4/3] overflow-hidden rounded-md border border-[var(--app-border)] bg-[var(--paper)]">
             <Image

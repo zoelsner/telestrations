@@ -13,6 +13,12 @@ export type ActiveTaskPreviousEntry =
       kind: "drawing";
       label: "Previous drawing";
       turn: number;
+    }
+  | {
+      kind: "skipped";
+      label: "Previous prompt" | "Previous guess" | "Previous drawing";
+      turn: number;
+      value: string;
     };
 
 export type ActiveTaskAssignment = {
