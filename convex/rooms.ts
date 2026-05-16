@@ -9,6 +9,12 @@ import {
   isTurnComplete,
   nextPhaseAfterCompletedTurn,
 } from "../src/domain/rotation";
+import {
+  getPromptPackOptions,
+  selectPackPrompt,
+  validatePromptPackId,
+  type PromptPackId,
+} from "../src/domain/prompt-packs";
 import { getSkipAssignmentGate } from "../src/domain/recovery";
 import {
   generateRoomCode,
@@ -34,7 +40,7 @@ const startGameResult = v.object({
   code: v.string(),
   currentTurnStartedAt: v.number(),
   currentTurn: v.number(),
-  currentEntryType: v.literal("prompt"),
+  currentEntryType: v.union(v.literal("prompt"), v.literal("drawing")),
   chainCount: v.number(),
   assignmentCount: v.number(),
 });
@@ -43,6 +49,14 @@ const updateTimerSettingsResult = v.object({
   code: v.string(),
   drawingSeconds: v.number(),
   guessingSeconds: v.number(),
+  roomId: v.id("rooms"),
+});
+
+const updatePromptSettingsResult = v.object({
+  allowCustomPrompts: v.boolean(),
+  code: v.string(),
+  promptMode: v.union(v.literal("player-written"), v.literal("safe-pack"), v.literal("mixed")),
+  promptPackId: v.optional(v.string()),
   roomId: v.id("rooms"),
 });
 
@@ -316,6 +330,7 @@ export const createRoom = mutation({
       settings: {
         maxPlayers: MAX_PLAYERS_PER_ROOM,
         promptMode: "player-written",
+        promptPackId: "mixed",
         allowCustomPrompts: true,
         drawingSeconds: 90,
         guessingSeconds: 60,
@@ -473,8 +488,14 @@ export const getLobby = query({
         currentTurn: room.currentTurn,
         isJoinable: room.status === "lobby" || room.status === "setup",
         settings: {
+          allowCustomPrompts: room.settings.allowCustomPrompts,
           drawingSeconds: room.settings.drawingSeconds,
           guessingSeconds: room.settings.guessingSeconds,
+          promptMode: room.settings.promptMode,
+          ...(room.settings.promptPackId === undefined
+            ? {}
+            : { promptPackId: room.settings.promptPackId }),
+          promptPackOptions: getPromptPackOptions(),
         },
       },
       players: players.map((player) => ({
@@ -701,6 +722,62 @@ export const updateTimerSettings = mutation({
   },
 });
 
+export const updatePromptSettings = mutation({
+  args: {
+    code: v.string(),
+    playerToken: v.string(),
+    promptMode: v.union(v.literal("player-written"), v.literal("safe-pack")),
+    promptPackId: v.optional(v.string()),
+  },
+  returns: updatePromptSettingsResult,
+  handler: async (ctx, args) => {
+    const code = requireValidRoomCode(args.code);
+    const tokenHash = await requireValidTokenHash(args.playerToken);
+    const promptPackId =
+      args.promptMode === "safe-pack" ? requireValidPromptPackId(args.promptPackId) : "mixed";
+    const now = Date.now();
+    const room = await getRoomByCode(ctx, code);
+
+    if (!room) {
+      throw roomError("room_not_found", "Room not found.");
+    }
+
+    const currentPlayer = await getPlayerByTokenHash(ctx, room._id, tokenHash);
+
+    if (!currentPlayer || currentPlayer.status === "removed") {
+      throw roomError("player_not_found", "Player not found in this room.");
+    }
+
+    if (!currentPlayer.isHost) {
+      throw roomError("host_required", "Only the host can update prompt settings.");
+    }
+
+    if (room.status !== "lobby" && room.status !== "setup") {
+      throw roomError("room_not_configurable", "Prompt settings can only be changed before start.");
+    }
+
+    const nextSettings = {
+      ...room.settings,
+      allowCustomPrompts: args.promptMode === "player-written",
+      promptMode: args.promptMode,
+      promptPackId,
+    };
+
+    await ctx.db.patch(room._id, {
+      settings: nextSettings,
+      updatedAt: now,
+    });
+
+    return {
+      allowCustomPrompts: nextSettings.allowCustomPrompts,
+      code: room.code,
+      promptMode: nextSettings.promptMode,
+      promptPackId,
+      roomId: room._id,
+    };
+  },
+});
+
 export const startGame = mutation({
   args: {
     code: v.string(),
@@ -753,20 +830,65 @@ export const startGame = mutation({
       });
     }
 
+    const playerByOrder = new Map(players.map((player) => [player.order, player]));
+    const chainByOrder = new Map(chainRecords.map((chain) => [chain.order, chain]));
+    const startTurn = room.settings.promptMode === "safe-pack" ? 1 : 0;
+    const startEntryType = startTurn === 1 ? ("drawing" as const) : ("prompt" as const);
     const assignments = buildTurnAssignments({
       chains: chainRecords,
       players: players.map((player) => ({
         id: player._id,
         order: player.order,
       })),
-      turn: 0,
+      turn: startTurn,
     });
-    const playerByOrder = new Map(players.map((player) => [player.order, player]));
-    const chainByOrder = new Map(chainRecords.map((chain) => [chain.order, chain]));
+    const seededPromptEntryByChainId = new Map<Doc<"chains">["_id"], Doc<"entries">["_id"]>();
+
+    if (room.settings.promptMode === "safe-pack") {
+      const promptPackId = requireValidPromptPackId(room.settings.promptPackId);
+      const usedPrompts: string[] = [];
+
+      for (const chain of chainRecords) {
+        const owner = requireOrderValue(playerByOrder, chain.order, "player");
+        const prompt = selectPackPrompt({
+          packId: promptPackId,
+          playerOrder: owner.order,
+          roomSeed: room.seed,
+          usedPrompts,
+        });
+        usedPrompts.push(prompt);
+
+        const entryId = await ctx.db.insert("entries", {
+          roomId: room._id,
+          chainId: chain.id,
+          authorPlayerId: owner._id,
+          turn: 0,
+          type: "prompt",
+          payload: {
+            text: prompt,
+            type: "prompt",
+          },
+          createdAt: now,
+          submittedAt: now,
+        });
+
+        await ctx.db.patch(chain.id, {
+          currentEntryId: entryId,
+          updatedAt: now,
+        });
+        seededPromptEntryByChainId.set(chain.id, entryId);
+      }
+    }
 
     for (const assignment of assignments) {
       const player = requireOrderValue(playerByOrder, assignment.playerOrder, "player");
       const chain = requireOrderValue(chainByOrder, assignment.chainOrder, "chain");
+      const previousEntryId =
+        startTurn === 0 ? undefined : seededPromptEntryByChainId.get(chain.id);
+
+      if (startTurn > 0 && previousEntryId === undefined) {
+        throw roomError("invalid_start_prompt", `Missing seeded prompt for chain ${chain.order}.`);
+      }
 
       await ctx.db.insert("assignments", {
         roomId: room._id,
@@ -775,17 +897,18 @@ export const startGame = mutation({
         turn: assignment.turn,
         entryType: assignment.entryType,
         status: "pending",
+        ...(previousEntryId === undefined ? {} : { previousEntryId }),
         assignedAt: now,
       });
     }
 
     await ctx.db.patch(room._id, {
       status: "active",
-      currentTurn: 0,
-      currentEntryType: "prompt",
+      currentTurn: startTurn,
+      currentEntryType: startEntryType,
       currentTurnStartedAt: now,
       activeDeadlineAt: getTurnDeadline({
-        entryType: "prompt",
+        entryType: startEntryType,
         settings: room.settings,
         turnStartedAt: now,
       }),
@@ -796,9 +919,9 @@ export const startGame = mutation({
     return {
       roomId: room._id,
       code: room.code,
-      currentTurn: 0,
+      currentTurn: startTurn,
       currentTurnStartedAt: now,
-      currentEntryType: "prompt" as const,
+      currentEntryType: startEntryType,
       chainCount: chainRecords.length,
       assignmentCount: assignments.length,
     };
@@ -1421,6 +1544,16 @@ function requireValidTimerSeconds(input: number) {
 
   if (!result.ok) {
     throw roomError("invalid_timer_seconds", result.reason);
+  }
+
+  return result.value;
+}
+
+function requireValidPromptPackId(input: string | undefined): PromptPackId {
+  const result = validatePromptPackId(input);
+
+  if (!result.ok) {
+    throw roomError("invalid_prompt_pack", result.reason);
   }
 
   return result.value;
