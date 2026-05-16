@@ -56,6 +56,7 @@ Work through GitHub issues one slice at a time. Before changing behavior, read:
 - `AGENTS.md`
 - `docs/architecture.md`
 - `docs/development-plan.md`
+- `docs/deployment.md` for production setup and rehearsal notes
 
 ## Current MVP State
 
@@ -65,9 +66,12 @@ Implemented foundations:
 - Convex schema and room create/join flow.
 - Anonymous room-scoped player tokens for refresh/reconnect basics.
 - Local drawing canvas with colors, brush sizes, undo, redo, clear, and PNG export status.
-- Rotation domain rules and Convex start-game initialization.
+- Rotation domain rules and Convex-backed turn progression.
+- Active task views for prompt, drawing, and guess turns.
+- Waiting/recovery state with host skip controls.
+- Host-configurable timers and prompt source/theme settings.
+- Final reveal with PDF export.
 - CI with lint, format check, typecheck, unit tests, build, and Playwright.
 
-Upcoming work is tracked in GitHub issues, with entry submission, turn
-advancement, active task views, reveal, timers, recovery, PDF export, deployment,
-and the 10 to 15 player rehearsal still to land.
+Remaining launch work is tracked in GitHub issues, with production frontend
+deployment and the 10 to 15 player rehearsal still to complete.
