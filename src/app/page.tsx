@@ -1,21 +1,17 @@
 import {
-  Brush,
   CheckCircle2,
   Clock3,
   Copy,
-  Eraser,
   Link2,
   Palette,
-  Pencil,
-  Redo2,
   Send,
   Settings2,
-  Undo2,
   UsersRound,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { Button, IconButton, Panel, TextInput } from "@/components/ui";
+import { DrawingBoard } from "@/components/drawing-board";
+import { Button, Panel, TextInput } from "@/components/ui";
 import { activeTaskPreview } from "@/domain/active-task-preview";
 import { CreateRoomForm } from "./create-room-form";
 
@@ -30,17 +26,6 @@ const players = [
   { name: "Lee", state: "Ready" },
   { name: "Chris", state: "Ready" },
   { name: "Morgan", state: "Ready" },
-];
-
-const swatches = [
-  "#111827",
-  "#6b7280",
-  "#ef4444",
-  "#f97316",
-  "#eab308",
-  "#22c55e",
-  "#2563eb",
-  "#7c3aed",
 ];
 
 export default function Home() {
@@ -132,8 +117,7 @@ export default function Home() {
             </div>
 
             <div className="p-3 sm:p-4">
-              <DrawingToolbar />
-              <DrawingCanvas />
+              <DrawingBoard />
             </div>
           </Panel>
 
@@ -179,65 +163,6 @@ export default function Home() {
         </section>
       </div>
     </main>
-  );
-}
-
-function DrawingToolbar() {
-  return (
-    <div
-      className="mb-3 flex flex-col gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-soft)] p-2 sm:flex-row sm:items-center sm:justify-between"
-      data-testid="drawing-toolbar"
-    >
-      <div className="flex min-w-0 touch-pan-x items-center gap-2 overflow-x-auto overscroll-x-contain pb-1 sm:pb-0">
-        <IconButton label="Brush">
-          <Brush size={17} />
-        </IconButton>
-        <IconButton label="Undo">
-          <Undo2 size={17} />
-        </IconButton>
-        <IconButton label="Redo">
-          <Redo2 size={17} />
-        </IconButton>
-        <IconButton label="Clear">
-          <Eraser size={17} />
-        </IconButton>
-      </div>
-      <div className="flex min-w-0 touch-pan-x items-center gap-2 overflow-x-auto overscroll-x-contain pb-1 sm:pb-0">
-        {swatches.map((color) => (
-          <button
-            aria-label={`Use ${color}`}
-            className="h-10 w-10 shrink-0 rounded-full border border-black/10 ring-offset-2 transition focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)] sm:h-7 sm:w-7"
-            key={color}
-            style={{ backgroundColor: color }}
-            type="button"
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function DrawingCanvas() {
-  return (
-    <div
-      aria-label="Drawing canvas"
-      className="aspect-[4/3] min-h-[min(64svh,360px)] w-full touch-none select-none overscroll-contain rounded-lg border border-[var(--app-border-strong)] bg-[var(--paper)] p-2 shadow-inner sm:min-h-[360px] sm:p-4"
-      data-testid="drawing-canvas"
-      role="img"
-    >
-      <div className="relative h-full min-h-[220px] touch-none overflow-hidden rounded-md bg-[linear-gradient(0deg,rgba(17,24,39,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(17,24,39,0.035)_1px,transparent_1px)] bg-[size:24px_24px] sm:min-h-0">
-        <div className="absolute left-[20%] top-[23%] h-24 w-32 rounded-lg border-4 border-[var(--ink)] bg-white" />
-        <div className="absolute left-[24%] top-[33%] grid h-11 w-24 grid-cols-3 gap-1">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <span className="rounded-sm bg-[var(--app-soft)]" key={index} />
-          ))}
-        </div>
-        <div className="absolute left-[54%] top-[24%] h-20 w-20 rounded-full border-4 border-[var(--app-accent)]" />
-        <div className="absolute left-[60%] top-[40%] h-28 w-1 -rotate-12 rounded-full bg-[var(--ink)]" />
-        <div className="absolute left-[50%] top-[54%] h-1 w-40 -rotate-6 rounded-full bg-[var(--ink)]" />
-        <Pencil className="absolute bottom-5 right-5 h-8 w-8 text-[var(--app-accent)] sm:bottom-8 sm:right-8 sm:h-10 sm:w-10" />
-      </div>
-    </div>
   );
 }
 
