@@ -19,7 +19,7 @@ import {
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
-import { FormEvent, useCallback, useState, useSyncExternalStore } from "react";
+import { FormEvent, useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 
 import { api } from "../../../../convex/_generated/api";
@@ -31,6 +31,7 @@ import { CANVAS_SIZE, DRAWING_BACKGROUND_COLOR } from "@/domain/drawing";
 import { buildRevealView } from "@/domain/reveal";
 import { normalizeRoomCode, validateDisplayName } from "@/domain/room-join";
 import { getStartGameGate } from "@/domain/start-game";
+import { TIMER_SECONDS, getTurnTimerState } from "@/domain/timer";
 import { getOrCreatePlayerToken } from "../../room-session";
 
 type Lobby = NonNullable<ReturnType<typeof useQuery<typeof api.rooms.getLobby>>>;
@@ -234,7 +235,10 @@ function ActiveTaskSurface({
           <p className="text-sm font-medium text-[var(--app-muted)]">Turn {taskView.currentTurn}</p>
           <h2 className="text-xl font-semibold">{taskView.title}</h2>
         </div>
-        <RoundProgress round={activeTask.round} />
+        <div className="flex flex-col gap-2 sm:items-end">
+          <TurnTimer deadlineAt={activeTask.room.activeDeadlineAt} />
+          <RoundProgress round={activeTask.round} />
+        </div>
       </div>
 
       {taskView.state === "compose" ? (
@@ -622,6 +626,28 @@ function InactiveTaskState({ title }: { title: string }) {
   );
 }
 
+function TurnTimer({ deadlineAt }: { deadlineAt: number | undefined }) {
+  const now = useNow(1_000);
+  const timerState = getTurnTimerState({ deadlineAt, now });
+
+  if (timerState.state === "off") {
+    return null;
+  }
+
+  return (
+    <div
+      className={`inline-flex h-10 items-center gap-2 rounded-md border px-3 text-sm font-medium ${
+        timerState.state === "expired"
+          ? "border-red-200 bg-red-50 text-red-700"
+          : "border-[var(--app-border)] bg-white text-[var(--app-foreground)]"
+      }`}
+    >
+      <Clock3 size={16} />
+      {timerState.state === "expired" ? "Overdue" : formatTimerSeconds(timerState.remainingSeconds)}
+    </div>
+  );
+}
+
 function RoundProgress({ round }: { round: ActiveTask["round"] }) {
   return (
     <div className="grid grid-cols-3 overflow-hidden rounded-md border border-[var(--app-border)] bg-white text-center text-xs">
@@ -630,6 +656,38 @@ function RoundProgress({ round }: { round: ActiveTask["round"] }) {
       <RoundProgressCell label="Total" value={round.totalCount} />
     </div>
   );
+}
+
+function useNow(intervalMs: number) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNow(Date.now()), intervalMs);
+
+    return () => window.clearInterval(intervalId);
+  }, [intervalMs]);
+
+  return now;
+}
+
+function formatTimerSeconds(totalSeconds: number) {
+  const safeSeconds = Math.max(0, totalSeconds);
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
+
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function timerOptionLabel(seconds: number) {
+  if (seconds === 0) {
+    return "Off";
+  }
+
+  if (seconds < 120) {
+    return `${seconds}s`;
+  }
+
+  return `${seconds / 60} min`;
 }
 
 function RoundProgressCell({ label, value }: { label: string; value: number }) {
@@ -881,6 +939,9 @@ function PlayerStatus({
           ? "Game is active. Keep this tab open while the round runs."
           : "Keep this tab open. Refresh will restore this player slot."}
       </p>
+      {!gameStarted ? (
+        <TimerSettingsPanel code={code} isHost={isHost} lobby={lobby} playerToken={playerToken} />
+      ) : null}
       {isHost && !gameStarted ? (
         <>
           <Button
@@ -899,6 +960,109 @@ function PlayerStatus({
         </>
       ) : null}
     </div>
+  );
+}
+
+function TimerSettingsPanel({
+  code,
+  isHost,
+  lobby,
+  playerToken,
+}: {
+  code: string;
+  isHost: boolean;
+  lobby: Lobby;
+  playerToken: string;
+}) {
+  const updateTimerSettings = useMutation(api.rooms.updateTimerSettings);
+  const [error, setError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const drawingSeconds = lobby.room.settings.drawingSeconds;
+  const guessingSeconds = lobby.room.settings.guessingSeconds;
+
+  async function handleTimerChange(kind: "drawing" | "guessing", value: string) {
+    const seconds = Number(value);
+
+    setError(null);
+    setIsSaving(true);
+
+    try {
+      await updateTimerSettings({
+        code,
+        drawingSeconds: kind === "drawing" ? seconds : drawingSeconds,
+        guessingSeconds: kind === "guessing" ? seconds : guessingSeconds,
+        playerToken,
+      });
+    } catch (caughtError) {
+      setError(errorMessage(caughtError, "Could not update timer settings."));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  if (!isHost) {
+    return (
+      <div className="grid gap-2 rounded-md bg-[var(--app-soft)] p-3 text-sm">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[var(--app-muted)]">Drawing timer</span>
+          <span className="font-medium">{timerOptionLabel(drawingSeconds)}</span>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[var(--app-muted)]">Guess timer</span>
+          <span className="font-medium">{timerOptionLabel(guessingSeconds)}</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-3 rounded-md bg-[var(--app-soft)] p-3">
+      <div className="grid gap-2 sm:grid-cols-2">
+        <TimerSelect
+          disabled={isSaving}
+          label="Drawing timer"
+          onChange={(value) => handleTimerChange("drawing", value)}
+          value={drawingSeconds}
+        />
+        <TimerSelect
+          disabled={isSaving}
+          label="Guess timer"
+          onChange={(value) => handleTimerChange("guessing", value)}
+          value={guessingSeconds}
+        />
+      </div>
+      {error ? <ErrorText message={error} /> : null}
+    </div>
+  );
+}
+
+function TimerSelect({
+  disabled,
+  label,
+  onChange,
+  value,
+}: {
+  disabled: boolean;
+  label: string;
+  onChange: (value: string) => void;
+  value: number;
+}) {
+  return (
+    <label className="grid gap-1 text-xs font-medium uppercase text-[var(--app-muted)]">
+      {label}
+      <select
+        className="h-10 rounded-md border border-[var(--app-border)] bg-white px-3 text-sm font-medium normal-case text-[var(--app-foreground)] focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)]"
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+        value={value}
+      >
+        {TIMER_SECONDS.map((seconds) => (
+          <option key={seconds} value={seconds}>
+            {timerOptionLabel(seconds)}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 

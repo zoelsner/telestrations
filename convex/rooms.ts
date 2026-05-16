@@ -18,6 +18,7 @@ import {
 } from "../src/domain/room-join";
 import { getStartGameGate } from "../src/domain/start-game";
 import { prepareEntrySubmission } from "../src/domain/submission";
+import { getTurnDeadline, getTurnSubmissionGate, validateTimerSeconds } from "../src/domain/timer";
 
 const roomResult = v.object({
   roomId: v.id("rooms"),
@@ -28,12 +29,21 @@ const roomResult = v.object({
 });
 
 const startGameResult = v.object({
+  activeDeadlineAt: v.optional(v.number()),
   roomId: v.id("rooms"),
   code: v.string(),
+  currentTurnStartedAt: v.number(),
   currentTurn: v.number(),
   currentEntryType: v.literal("prompt"),
   chainCount: v.number(),
   assignmentCount: v.number(),
+});
+
+const updateTimerSettingsResult = v.object({
+  code: v.string(),
+  drawingSeconds: v.number(),
+  guessingSeconds: v.number(),
+  roomId: v.id("rooms"),
 });
 
 const drawingPayloadInput = v.object({
@@ -156,11 +166,13 @@ const activeTaskResult = v.union(
       }),
     ),
     room: v.object({
+      activeDeadlineAt: v.optional(v.number()),
       code: v.string(),
       currentEntryType: v.optional(
         v.union(v.literal("prompt"), v.literal("drawing"), v.literal("guess")),
       ),
       currentTurn: v.number(),
+      currentTurnStartedAt: v.optional(v.number()),
       id: v.id("rooms"),
       status: v.union(
         v.literal("setup"),
@@ -449,6 +461,10 @@ export const getLobby = query({
 
     return {
       room: {
+        ...(room.activeDeadlineAt === undefined ? {} : { activeDeadlineAt: room.activeDeadlineAt }),
+        ...(room.currentTurnStartedAt === undefined
+          ? {}
+          : { currentTurnStartedAt: room.currentTurnStartedAt }),
         id: room._id,
         code: room.code,
         status: room.status,
@@ -456,6 +472,10 @@ export const getLobby = query({
         maxPlayers: room.settings.maxPlayers,
         currentTurn: room.currentTurn,
         isJoinable: room.status === "lobby" || room.status === "setup",
+        settings: {
+          drawingSeconds: room.settings.drawingSeconds,
+          guessingSeconds: room.settings.guessingSeconds,
+        },
       },
       players: players.map((player) => ({
         id: player._id,
@@ -538,9 +558,13 @@ export const getActiveTask = query({
               status: currentPlayer.status,
             },
       room: {
+        ...(room.activeDeadlineAt === undefined ? {} : { activeDeadlineAt: room.activeDeadlineAt }),
         code: room.code,
         ...(room.currentEntryType === undefined ? {} : { currentEntryType: room.currentEntryType }),
         currentTurn: room.currentTurn,
+        ...(room.currentTurnStartedAt === undefined
+          ? {}
+          : { currentTurnStartedAt: room.currentTurnStartedAt }),
         id: room._id,
         status: room.status,
       },
@@ -621,6 +645,58 @@ export const getReveal = query({
         id: room._id,
         status: room.status,
       },
+    };
+  },
+});
+
+export const updateTimerSettings = mutation({
+  args: {
+    code: v.string(),
+    drawingSeconds: v.number(),
+    guessingSeconds: v.number(),
+    playerToken: v.string(),
+  },
+  returns: updateTimerSettingsResult,
+  handler: async (ctx, args) => {
+    const code = requireValidRoomCode(args.code);
+    const tokenHash = await requireValidTokenHash(args.playerToken);
+    const drawingSeconds = requireValidTimerSeconds(args.drawingSeconds);
+    const guessingSeconds = requireValidTimerSeconds(args.guessingSeconds);
+    const now = Date.now();
+    const room = await getRoomByCode(ctx, code);
+
+    if (!room) {
+      throw roomError("room_not_found", "Room not found.");
+    }
+
+    const currentPlayer = await getPlayerByTokenHash(ctx, room._id, tokenHash);
+
+    if (!currentPlayer || currentPlayer.status === "removed") {
+      throw roomError("player_not_found", "Player not found in this room.");
+    }
+
+    if (!currentPlayer.isHost) {
+      throw roomError("host_required", "Only the host can update timer settings.");
+    }
+
+    if (room.status !== "lobby" && room.status !== "setup") {
+      throw roomError("room_not_configurable", "Timer settings can only be changed before start.");
+    }
+
+    await ctx.db.patch(room._id, {
+      settings: {
+        ...room.settings,
+        drawingSeconds,
+        guessingSeconds,
+      },
+      updatedAt: now,
+    });
+
+    return {
+      code: room.code,
+      drawingSeconds,
+      guessingSeconds,
+      roomId: room._id,
     };
   },
 });
@@ -707,6 +783,12 @@ export const startGame = mutation({
       status: "active",
       currentTurn: 0,
       currentEntryType: "prompt",
+      currentTurnStartedAt: now,
+      activeDeadlineAt: getTurnDeadline({
+        entryType: "prompt",
+        settings: room.settings,
+        turnStartedAt: now,
+      }),
       startedAt: now,
       updatedAt: now,
     });
@@ -715,6 +797,7 @@ export const startGame = mutation({
       roomId: room._id,
       code: room.code,
       currentTurn: 0,
+      currentTurnStartedAt: now,
       currentEntryType: "prompt" as const,
       chainCount: chainRecords.length,
       assignmentCount: assignments.length,
@@ -761,6 +844,8 @@ export const generateDrawingUploadUrl = mutation({
       throw roomError("assignment_not_pending", "This drawing assignment is not pending.");
     }
 
+    assertTurnAcceptsSubmission(room.activeDeadlineAt, Date.now());
+
     return await ctx.storage.generateUploadUrl();
   },
 });
@@ -789,6 +874,7 @@ export const submitEntry = mutation({
     }
 
     const assignment = await getAssignmentByPlayerTurn(ctx, currentPlayer._id, room.currentTurn);
+    assertTurnAcceptsSubmission(room.activeDeadlineAt, now);
     const submissionAssignment =
       assignment === null
         ? null
@@ -994,6 +1080,7 @@ async function advanceRoomAfterTurnIfReady(
 
   if (nextPhase.status === "reveal") {
     await ctx.db.patch(room._id, {
+      activeDeadlineAt: undefined,
       status: "reveal",
       revealedAt: now,
       updatedAt: now,
@@ -1052,9 +1139,17 @@ async function advanceRoomAfterTurnIfReady(
     throw roomError("invalid_turn_advancement", "Next turn assignments are incomplete.");
   }
 
+  const activeDeadlineAt = getTurnDeadline({
+    entryType: nextPhase.entryType,
+    settings: room.settings,
+    turnStartedAt: now,
+  });
+
   await ctx.db.patch(room._id, {
+    activeDeadlineAt,
     currentTurn: nextPhase.turn,
     currentEntryType: nextPhase.entryType,
+    currentTurnStartedAt: now,
     updatedAt: now,
   });
 
@@ -1319,6 +1414,24 @@ function requireValidDisplayName(input: string) {
   }
 
   return result.value;
+}
+
+function requireValidTimerSeconds(input: number) {
+  const result = validateTimerSeconds(input);
+
+  if (!result.ok) {
+    throw roomError("invalid_timer_seconds", result.reason);
+  }
+
+  return result.value;
+}
+
+function assertTurnAcceptsSubmission(deadlineAt: number | undefined, now: number) {
+  const result = getTurnSubmissionGate({ deadlineAt, now });
+
+  if (!result.ok) {
+    throw roomError(result.code, result.message);
+  }
 }
 
 async function requireValidTokenHash(input: string) {
