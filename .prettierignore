@@ -1,6 +1,12 @@
+.convex
+.env*
 .next
 convex/_generated
 coverage
+next-env.d.ts
 node_modules
 package-lock.json
+playwright-report
 public/*.svg
+test-results
+tsconfig.tsbuildinfo
