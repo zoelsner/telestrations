@@ -2,6 +2,10 @@
 
 A modern team drawing and guessing game built with Next.js and Convex.
 
+This repo is public, but the app is still an MVP under active development. It is
+designed for anonymous room-code play with a small trusted team, not account
+authentication.
+
 ## Getting Started
 
 Use Node `22.13.0` or newer on the supported LTS line. The repo includes
@@ -17,14 +21,21 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## Convex
 
-Run Convex in a second terminal when you are ready to create the dev deployment:
+The app can render the static shell without Convex, but live rooms and gameplay
+state need a Convex deployment. Run Convex in a second terminal when you are
+ready to create or connect the dev deployment:
 
 ```bash
 npm run convex:dev
 ```
 
-The Convex CLI writes `NEXT_PUBLIC_CONVEX_URL` to `.env.local`. The app can boot
-without that value for scaffold work, but game-state features will require it.
+The Convex CLI writes `NEXT_PUBLIC_CONVEX_URL` to `.env.local`. Keep
+`.env.local` private. The checked-in `.env.example` only documents the required
+public browser env var name.
+
+Room participation currently uses a room-scoped anonymous browser token stored
+in `localStorage`. That token restores the same player slot on refresh, but it is
+not an account system and should not be treated as strong authentication.
 
 ## Scripts
 
@@ -35,7 +46,8 @@ without that value for scaffold work, but game-state features will require it.
 - `npm run format:check`: verify Prettier formatting.
 - `npm run test`: run Vitest.
 - `npm run check`: lint, format check, typecheck, and unit tests.
-- `npm run ci`: full local CI gate for this initial scaffold.
+- `npm run test:e2e`: run Playwright browser checks.
+- `npm run ci`: full local quality gate: check, build, and E2E.
 
 ## Workflow
 
@@ -45,12 +57,17 @@ Work through GitHub issues one slice at a time. Before changing behavior, read:
 - `docs/architecture.md`
 - `docs/development-plan.md`
 
-## Current Scope
+## Current MVP State
 
-Issue #1 establishes the project shell and tooling only. Room creation, drawing,
-turn rotation, timers, reconnect, reveal, and PDF export are intentionally split
-into later issues.
+Implemented foundations:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Next.js app shell and responsive drawing workspace.
+- Convex schema and room create/join flow.
+- Anonymous room-scoped player tokens for refresh/reconnect basics.
+- Local drawing canvas with colors, brush sizes, undo, redo, clear, and PNG export status.
+- Rotation domain rules and Convex start-game initialization.
+- CI with lint, format check, typecheck, unit tests, build, and Playwright.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Upcoming work is tracked in GitHub issues, with entry submission, turn
+advancement, active task views, reveal, timers, recovery, PDF export, deployment,
+and the 10 to 15 player rehearsal still to land.
