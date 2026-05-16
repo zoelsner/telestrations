@@ -4,7 +4,11 @@ import type { Doc } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
 import { MAX_PLAYERS_PER_ROOM } from "../src/domain/game-state";
-import { buildTurnAssignments } from "../src/domain/rotation";
+import {
+  buildTurnAssignments,
+  isTurnComplete,
+  nextPhaseAfterCompletedTurn,
+} from "../src/domain/rotation";
 import {
   generateRoomCode,
   validateDisplayName,
@@ -84,9 +88,15 @@ const entrySubmissionInput = v.union(
 
 const submitEntryResult = v.object({
   roomId: v.id("rooms"),
+  advanced: v.boolean(),
   assignmentId: v.id("assignments"),
   chainId: v.id("chains"),
+  currentEntryType: v.optional(
+    v.union(v.literal("prompt"), v.literal("drawing"), v.literal("guess")),
+  ),
+  currentTurn: v.number(),
   entryId: v.id("entries"),
+  roomStatus: v.union(v.literal("active"), v.literal("reveal")),
   turn: v.number(),
   type: v.union(v.literal("prompt"), v.literal("drawing"), v.literal("guess")),
 });
@@ -461,17 +471,135 @@ export const submitEntry = mutation({
     await ctx.db.patch(room._id, {
       updatedAt: now,
     });
+    const advancement = await advanceRoomAfterTurnIfReady(ctx, room, now);
 
     return {
       roomId: room._id,
+      advanced: advancement.advanced,
       assignmentId: assignment._id,
       chainId: assignment.chainId,
+      ...(advancement.currentEntryType === undefined
+        ? {}
+        : { currentEntryType: advancement.currentEntryType }),
+      currentTurn: advancement.currentTurn,
       entryId,
+      roomStatus: advancement.roomStatus,
       turn: preparedSubmission.turn,
       type: preparedSubmission.entryType,
     };
   },
 });
+
+async function advanceRoomAfterTurnIfReady(
+  ctx: MutationCtx,
+  room: Doc<"rooms">,
+  now: number,
+): Promise<{
+  advanced: boolean;
+  currentEntryType?: "prompt" | "drawing" | "guess";
+  currentTurn: number;
+  roomStatus: "active" | "reveal";
+}> {
+  const chains = await getChainsByRoom(ctx, room._id);
+  const currentAssignments = await getAssignmentsByRoomTurn(ctx, room._id, room.currentTurn);
+
+  if (
+    !isTurnComplete({
+      assignments: currentAssignments.map((assignment) => ({
+        status: assignment.status,
+        ...(assignment.submittedEntryId === undefined
+          ? {}
+          : { submittedEntryId: assignment.submittedEntryId }),
+      })),
+      expectedAssignmentCount: chains.length,
+    })
+  ) {
+    return {
+      advanced: false,
+      ...(room.currentEntryType === undefined ? {} : { currentEntryType: room.currentEntryType }),
+      currentTurn: room.currentTurn,
+      roomStatus: "active",
+    };
+  }
+
+  const nextPhase = nextPhaseAfterCompletedTurn({
+    completedTurn: room.currentTurn,
+    playerCount: chains.length,
+  });
+
+  if (nextPhase.status === "reveal") {
+    await ctx.db.patch(room._id, {
+      status: "reveal",
+      revealedAt: now,
+      updatedAt: now,
+    });
+
+    return {
+      advanced: true,
+      currentTurn: room.currentTurn,
+      roomStatus: "reveal",
+    };
+  }
+
+  const existingNextAssignments = await getAssignmentsByRoomTurn(ctx, room._id, nextPhase.turn);
+
+  if (existingNextAssignments.length === 0) {
+    const players = (await getPlayersByRoom(ctx, room._id)).filter(
+      (player) => player.status !== "removed",
+    );
+    const playerByOrder = new Map(players.map((player) => [player.order, player]));
+    const chainByOrder = new Map(chains.map((chain) => [chain.order, chain]));
+    const nextAssignments = buildTurnAssignments({
+      chains: chains.map((chain) => ({
+        id: chain._id,
+        order: chain.order,
+      })),
+      players: players.map((player) => ({
+        id: player._id,
+        order: player.order,
+      })),
+      turn: nextPhase.turn,
+    });
+
+    for (const nextAssignment of nextAssignments) {
+      const player = requireOrderValue(playerByOrder, nextAssignment.playerOrder, "player");
+      const chain = requireOrderValue(chainByOrder, nextAssignment.chainOrder, "chain");
+
+      if (!chain.currentEntryId) {
+        throw roomError(
+          "invalid_turn_advancement",
+          `Missing previous entry for chain order ${chain.order}.`,
+        );
+      }
+
+      await ctx.db.insert("assignments", {
+        roomId: room._id,
+        playerId: player._id,
+        chainId: chain._id,
+        turn: nextAssignment.turn,
+        entryType: nextAssignment.entryType,
+        status: "pending",
+        previousEntryId: chain.currentEntryId,
+        assignedAt: now,
+      });
+    }
+  } else if (existingNextAssignments.length !== chains.length) {
+    throw roomError("invalid_turn_advancement", "Next turn assignments are incomplete.");
+  }
+
+  await ctx.db.patch(room._id, {
+    currentTurn: nextPhase.turn,
+    currentEntryType: nextPhase.entryType,
+    updatedAt: now,
+  });
+
+  return {
+    advanced: true,
+    currentEntryType: nextPhase.entryType,
+    currentTurn: nextPhase.turn,
+    roomStatus: "active",
+  };
+}
 
 async function createUniqueRoomCode(ctx: RoomLookupCtx) {
   for (let attempts = 0; attempts < 10; attempts += 1) {
@@ -500,6 +628,13 @@ async function getPlayersByRoom(ctx: RoomLookupCtx, roomId: Doc<"rooms">["_id"])
     .collect();
 }
 
+async function getChainsByRoom(ctx: RoomLookupCtx, roomId: Doc<"rooms">["_id"]) {
+  return await ctx.db
+    .query("chains")
+    .withIndex("by_room_order", (q) => q.eq("roomId", roomId))
+    .collect();
+}
+
 async function getPlayerByTokenHash(
   ctx: RoomLookupCtx,
   roomId: Doc<"rooms">["_id"],
@@ -509,6 +644,17 @@ async function getPlayerByTokenHash(
     .query("players")
     .withIndex("by_room_token", (q) => q.eq("roomId", roomId).eq("tokenHash", tokenHash))
     .unique();
+}
+
+async function getAssignmentsByRoomTurn(
+  ctx: RoomLookupCtx,
+  roomId: Doc<"rooms">["_id"],
+  turn: number,
+) {
+  return await ctx.db
+    .query("assignments")
+    .withIndex("by_room_turn", (q) => q.eq("roomId", roomId).eq("turn", turn))
+    .collect();
 }
 
 async function getAssignmentByPlayerTurn(

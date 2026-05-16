@@ -4,6 +4,7 @@ import {
   buildTurnAssignments,
   entryTypeForTurn,
   finalTurnForPlayerCount,
+  isTurnComplete,
   nextPhaseAfterCompletedTurn,
 } from "./rotation";
 
@@ -83,6 +84,51 @@ describe("rotation engine", () => {
     expect(nextPhaseAfterCompletedTurn({ completedTurn: 3, playerCount: 4 })).toEqual({
       status: "reveal",
     });
+  });
+
+  it("detects turn completion only when every expected assignment is done", () => {
+    expect(
+      isTurnComplete({
+        assignments: [
+          { status: "submitted", submittedEntryId: "entry-1" },
+          { status: "skipped" },
+          { status: "expired" },
+        ],
+        expectedAssignmentCount: 3,
+      }),
+    ).toBe(true);
+
+    expect(
+      isTurnComplete({
+        assignments: [
+          { status: "submitted", submittedEntryId: "entry-1" },
+          { status: "pending" },
+          { status: "submitted", submittedEntryId: "entry-3" },
+        ],
+        expectedAssignmentCount: 3,
+      }),
+    ).toBe(false);
+
+    expect(
+      isTurnComplete({
+        assignments: [
+          { status: "submitted", submittedEntryId: "entry-1" },
+          { status: "submitted" },
+          { status: "submitted", submittedEntryId: "entry-3" },
+        ],
+        expectedAssignmentCount: 3,
+      }),
+    ).toBe(false);
+
+    expect(
+      isTurnComplete({
+        assignments: [
+          { status: "submitted", submittedEntryId: "entry-1" },
+          { status: "submitted", submittedEntryId: "entry-2" },
+        ],
+        expectedAssignmentCount: 3,
+      }),
+    ).toBe(false);
   });
 
   it("rejects games with fewer than 3 players", () => {
