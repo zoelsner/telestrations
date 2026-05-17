@@ -1,6 +1,6 @@
 import type { EntryType } from "./game-state";
 
-export const TIMER_SECONDS = [0, 60, 90, 120, 180] as const;
+export const TIMER_SECONDS = [0, 30, 45, 60, 90, 120] as const;
 export type TimerSeconds = (typeof TIMER_SECONDS)[number];
 
 export type TurnTimerSettings = {
@@ -30,7 +30,7 @@ export function validateTimerSeconds(
 
   return {
     ok: false,
-    reason: "Timer must be off, 60s, 90s, 2 min, or 3 min.",
+    reason: "Timer must be off, 30s, 45s, 60s, 90s, or 2 min.",
   };
 }
 

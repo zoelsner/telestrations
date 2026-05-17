@@ -10,11 +10,12 @@ import {
 
 describe("timer domain rules", () => {
   it("accepts the MVP timer options", () => {
-    expect(TIMER_SECONDS).toEqual([0, 60, 90, 120, 180]);
+    expect(TIMER_SECONDS).toEqual([0, 30, 45, 60, 90, 120]);
+    expect(validateTimerSeconds(45)).toEqual({ ok: true, value: 45 });
     expect(validateTimerSeconds(90)).toEqual({ ok: true, value: 90 });
-    expect(validateTimerSeconds(45)).toMatchObject({
+    expect(validateTimerSeconds(180)).toMatchObject({
       ok: false,
-      reason: "Timer must be off, 60s, 90s, 2 min, or 3 min.",
+      reason: "Timer must be off, 30s, 45s, 60s, 90s, or 2 min.",
     });
   });
 
