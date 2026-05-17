@@ -94,6 +94,57 @@ test.describe("multiplayer game loop", () => {
     }
   });
 
+  test("restores the same player slot after refresh during an active turn", async ({
+    browser,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "chromium-desktop", "Run reconnect path once");
+
+    const hostContext = await browser.newContext();
+    const guestOneContext = await browser.newContext();
+    const guestTwoContext = await browser.newContext();
+
+    try {
+      const host = await hostContext.newPage();
+      const guestOne = await guestOneContext.newPage();
+      const guestTwo = await guestTwoContext.newPage();
+
+      await host.goto("/");
+      await host.getByPlaceholder("Maya").fill("Reconnect Host");
+      await host.getByRole("button", { name: "Create room" }).click();
+      await expect(host).toHaveURL(/\/room\/[A-Z2-9]{4}$/);
+
+      const roomUrl = host.url();
+
+      await joinRoom(guestOne, roomUrl, "Reconnect Two");
+      await joinRoom(guestTwo, roomUrl, "Reconnect Three");
+
+      await expect(
+        host.getByText("Rejoin from this browser with the same room link."),
+      ).toBeVisible();
+      await host.getByRole("button", { name: "Start game" }).click();
+
+      await submitPrompt(host, "A ladder");
+      await submitPrompt(guestOne, "A suitcase");
+      await submitPrompt(guestTwo, "A shark");
+
+      await expect(host.getByRole("heading", { name: "Draw this" })).toBeVisible();
+      await expect(host.getByText("A shark")).toBeVisible();
+
+      await host.reload();
+
+      await expect(host.getByRole("heading", { name: "Draw this" })).toBeVisible();
+      await expect(host.getByText("A shark")).toBeVisible();
+      await expect(host.getByRole("heading", { name: "Join room" })).toHaveCount(0);
+      await expect(
+        host.getByText("Rejoin from this browser with the same room link."),
+      ).toBeVisible();
+    } finally {
+      await hostContext.close();
+      await guestOneContext.close();
+      await guestTwoContext.close();
+    }
+  });
+
   test("creates, joins, starts, submits, advances, and reveals", async ({ browser }, testInfo) => {
     test.skip(testInfo.project.name !== "chromium-desktop", "Run the full multiplayer path once");
 

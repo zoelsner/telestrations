@@ -92,14 +92,21 @@ function RoomPageLive({ code }: { code: string }) {
             <p className="text-sm font-medium text-[var(--app-muted)]">Room {code}</p>
             <h1 className="text-2xl font-semibold">Telestrations</h1>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <RoomInviteControls code={code} />
-            <Link
-              className="inline-flex h-11 w-full items-center justify-center rounded-md border border-[var(--app-border)] bg-white px-3 text-sm font-medium transition hover:bg-[var(--app-soft)] sm:h-10 sm:w-auto"
-              href="/"
-            >
-              Back to app
-            </Link>
+          <div className="flex flex-col gap-2 sm:items-end">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <RoomInviteControls code={code} />
+              <Link
+                className="inline-flex h-11 w-full items-center justify-center rounded-md border border-[var(--app-border)] bg-white px-3 text-sm font-medium transition hover:bg-[var(--app-soft)] sm:h-10 sm:w-auto"
+                href="/"
+              >
+                Back to app
+              </Link>
+            </div>
+            {lobby !== undefined && lobby !== null && lobby.currentPlayer ? (
+              <p className="text-xs leading-5 text-[var(--app-muted)]">
+                Rejoin from this browser with the same room link.
+              </p>
+            ) : null}
           </div>
         </header>
 
