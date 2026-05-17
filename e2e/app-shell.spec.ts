@@ -1,23 +1,18 @@
 import { expect, type Page, test } from "@playwright/test";
 
 test.describe("app shell", () => {
-  test("shows the active draw and guess tasks without reveal history", async ({ page }) => {
+  test("shows focused create and join paths without gameplay panels", async ({ page }) => {
     await page.goto("/");
 
     await expect(page.getByRole("heading", { level: 1, name: "Telestrations" })).toBeVisible();
-    await expect(page.getByText("Room F7K2")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Lobby" })).toBeVisible();
-    await expect(page.getByText("10/15")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Create a room" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Join a room" })).toBeVisible();
+    await expect(page.getByPlaceholder("Maya")).toBeVisible();
+    await expect(page.getByPlaceholder("F7K2 or paste a room link")).toBeVisible();
 
-    await expect(page.getByRole("heading", { name: "Draw this" })).toBeVisible();
-    await expect(page.getByText("Previous guess")).toBeVisible();
-    await expect(page.getByText("A calendar invite that got way too serious")).toBeVisible();
-
-    await expect(page.getByRole("heading", { name: "Guess state" })).toBeVisible();
-    await expect(page.getByText("Previous drawing")).toBeVisible();
-    await expect(page.getByPlaceholder("Type what you see")).toBeVisible();
-
-    await expect(page.getByText(/Full chain|Chain history|Complete sequence/i)).toHaveCount(0);
+    await expect(
+      page.getByText(/Draw this|Guess state|Previous drawing|Chain history/i),
+    ).toHaveCount(0);
   });
 
   test("does not horizontally overflow the viewport", async ({ page }) => {
@@ -26,69 +21,13 @@ test.describe("app shell", () => {
     await expectNoHorizontalOverflow(page);
   });
 
-  test("keeps the drawing surface mobile-ready", async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== "chromium-mobile", "Mobile viewport contract");
-
+  test("routes room codes and pasted room links to room pages", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.getByTestId("drawing-toolbar")).toBeVisible();
+    await page.getByPlaceholder("F7K2 or paste a room link").fill("https://draw.team/room/f7k2");
+    await page.getByRole("button", { name: "Join room" }).click();
 
-    const canvas = page.getByTestId("drawing-canvas");
-    await expect(canvas).toBeVisible();
-
-    const metrics = await canvas.evaluate((element) => {
-      const box = element.getBoundingClientRect();
-
-      return {
-        canvasWidth: box.width,
-        touchAction: getComputedStyle(element).touchAction,
-        viewportWidth: document.documentElement.clientWidth,
-      };
-    });
-
-    expect(metrics.canvasWidth).toBeLessThanOrEqual(metrics.viewportWidth);
-    expect(metrics.touchAction).toBe("none");
-    await expectNoHorizontalOverflow(page);
-  });
-
-  test("supports a local drawing stroke with undo, redo, clear, and PNG export", async ({
-    page,
-  }) => {
-    await page.goto("/");
-
-    const canvas = page.getByTestId("drawing-canvas-element");
-    await expect(canvas).toBeVisible();
-
-    const box = await canvas.boundingBox();
-    expect(box).not.toBeNull();
-
-    if (box === null) {
-      return;
-    }
-
-    await expect(page.getByTestId("drawing-status")).toContainText("0 strokes");
-
-    await page.mouse.move(box.x + box.width * 0.25, box.y + box.height * 0.35);
-    await page.mouse.down();
-    await page.mouse.move(box.x + box.width * 0.65, box.y + box.height * 0.55, { steps: 8 });
-    await page.mouse.up();
-
-    await expect(page.getByTestId("drawing-status")).toContainText("1 stroke");
-    const exportStatus = page.getByTestId("drawing-export-status");
-    await expect(exportStatus).toContainText("PNG ready");
-    await expect(exportStatus).toHaveAttribute("data-mime-type", "image/png");
-
-    await page.getByRole("button", { name: "Undo stroke" }).click();
-    await expect(page.getByTestId("drawing-status")).toContainText("0 strokes");
-
-    await page.getByRole("button", { name: "Redo stroke" }).click();
-    await expect(page.getByTestId("drawing-status")).toContainText("1 stroke");
-
-    await page.getByRole("button", { name: "Clear drawing" }).click();
-    await expect(page.getByTestId("drawing-status")).toContainText("0 strokes");
-
-    await page.getByRole("button", { name: "Undo stroke" }).click();
-    await expect(page.getByTestId("drawing-status")).toContainText("1 stroke");
+    await expect(page).toHaveURL(/\/room\/F7K2$/);
   });
 
   test("renders the room route shell", async ({ page }) => {

@@ -47,11 +47,10 @@ is wired correctly in a browser, not exhaust every game permutation.
 The first named E2E contract is `app-shell.spec.ts`:
 
 1. Open the app.
-2. Confirm the room shell renders.
-3. Confirm the draw task shows only the immediately previous text entry.
-4. Confirm the guess state shows only the previous drawing plus a guess input.
-5. Confirm the lobby and round-status surfaces are visible.
-6. Confirm the page has no horizontal overflow at desktop and mobile widths.
+2. Confirm the home screen exposes focused create-room and join-room paths.
+3. Confirm pasted room links and room codes route to `/room/[code]`.
+4. Confirm the room shell renders with invite-copy affordances.
+5. Confirm the page has no horizontal overflow at desktop and mobile widths.
 
 Once room creation and Convex-backed game state exist, replace the static shell
 contract with a deterministic simulated-player flow:

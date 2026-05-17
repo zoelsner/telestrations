@@ -8,7 +8,10 @@ phone-specific layout order, touch targets, and gesture handling.
 
 - The active drawing task appears before secondary lobby/context panels on phone
   widths.
-- Join/status actions appear before the room lobby on phone widths.
+- The home screen stacks create-room and join-room actions into clear full-width
+  touch targets on phone widths.
+- Joined-room lobby/setup actions appear before secondary context on phone
+  widths.
 - Canvas-like drawing surfaces fit inside the viewport without horizontal page
   overflow.
 - Drawing surfaces use `touch-action: none` so the eventual canvas can handle
@@ -32,6 +35,6 @@ drawing implementation.
 - iPhone-sized landscape viewport: canvas remains usable and page scroll stays
   predictable.
 - Tablet viewport: layout has more room but does not collapse desktop controls.
-- Desktop viewport: the three-column app shell and two-column room shell match
-  the desktop-first design.
+- Desktop viewport: the start screen and room shell preserve the desktop-first
+  layout while active turns remain focused on one task.
 - Refresh on a joined room still restores the anonymous player slot.
