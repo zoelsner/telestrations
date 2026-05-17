@@ -35,6 +35,14 @@ describe("prompt packs", () => {
     });
   });
 
+  it("keeps app prompt pack items quick to draw", () => {
+    for (const packId of PROMPT_PACK_IDS) {
+      for (const prompt of getPromptPack(packId).prompts) {
+        expect(prompt.split(/\s+/).length, prompt).toBeLessThanOrEqual(5);
+      }
+    }
+  });
+
   it("selects deterministic, distributed prompts by room seed and player order", () => {
     const first = selectPackPrompt({
       packId: "product-tech",
