@@ -7,10 +7,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  Copy,
   Crown,
   Download,
   DoorOpen,
   Image as ImageIcon,
+  Link2,
   Loader2,
   Palette,
   Play,
@@ -80,6 +82,7 @@ function RoomPageLive({ code }: { code: string }) {
     lobby !== null &&
     lobby.currentPlayer !== null &&
     lobby.room.status === "reveal";
+  const focusRoom = showActiveTask || showReveal;
 
   return (
     <main className="min-h-svh bg-[var(--app-background)] text-[var(--app-foreground)]">
@@ -89,16 +92,27 @@ function RoomPageLive({ code }: { code: string }) {
             <p className="text-sm font-medium text-[var(--app-muted)]">Room {code}</p>
             <h1 className="text-2xl font-semibold">Telestrations</h1>
           </div>
-          <Link
-            className="inline-flex h-11 w-full items-center justify-center rounded-md border border-[var(--app-border)] bg-white px-3 text-sm font-medium transition hover:bg-[var(--app-soft)] sm:h-10 sm:w-auto"
-            href="/"
-          >
-            Back to app
-          </Link>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <RoomInviteControls code={code} />
+            <Link
+              className="inline-flex h-11 w-full items-center justify-center rounded-md border border-[var(--app-border)] bg-white px-3 text-sm font-medium transition hover:bg-[var(--app-soft)] sm:h-10 sm:w-auto"
+              href="/"
+            >
+              Back to app
+            </Link>
+          </div>
         </header>
 
-        <section className="grid flex-1 gap-4 py-4 sm:py-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <Panel className={`order-1 ${showActiveTask ? "overflow-hidden" : "p-4"}`}>
+        <section
+          className={
+            focusRoom
+              ? "flex flex-1 py-4 sm:py-5"
+              : "grid flex-1 gap-4 py-4 sm:py-5 lg:grid-cols-[minmax(0,1fr)_320px]"
+          }
+        >
+          <Panel
+            className={`order-1 ${showActiveTask || showReveal ? "flex-1 overflow-hidden" : "p-4"}`}
+          >
             {lobby === undefined ? (
               <LoadingRoom />
             ) : lobby === null ? (
@@ -120,28 +134,48 @@ function RoomPageLive({ code }: { code: string }) {
             )}
           </Panel>
 
-          <div className="order-2 grid content-start gap-4">
-            <Panel className="p-4">
-              {lobby === undefined || playerToken === null ? (
-                <LoadingRoom />
-              ) : lobby === null ? (
-                <MissingRoom code={code} />
-              ) : lobby.currentPlayer ? (
-                <PlayerStatus code={code} lobby={lobby} playerToken={playerToken} />
-              ) : (
-                <JoinRoomForm code={code} playerToken={playerToken} />
-              )}
-            </Panel>
-
-            {(showActiveTask || showReveal) && lobby !== undefined && lobby !== null ? (
+          {!focusRoom ? (
+            <div className="order-2 grid content-start gap-4">
               <Panel className="p-4">
-                <LobbyView lobby={lobby} compact />
+                {lobby === undefined || playerToken === null ? (
+                  <LoadingRoom />
+                ) : lobby === null ? (
+                  <MissingRoom code={code} />
+                ) : lobby.currentPlayer ? (
+                  <PlayerStatus code={code} lobby={lobby} playerToken={playerToken} />
+                ) : (
+                  <JoinRoomForm code={code} playerToken={playerToken} />
+                )}
               </Panel>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
         </section>
       </div>
     </main>
+  );
+}
+
+function RoomInviteControls({ code }: { code: string }) {
+  const sharePath = `/room/${code}`;
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopyInvite() {
+    await navigator.clipboard.writeText(`${window.location.origin}${sharePath}`);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1_500);
+  }
+
+  return (
+    <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="inline-flex h-11 min-w-0 items-center gap-2 rounded-md border border-[var(--app-border)] bg-white px-3 text-sm text-[var(--app-muted)] shadow-sm sm:h-10">
+        <Link2 className="shrink-0" size={16} />
+        <span className="truncate">{sharePath}</span>
+      </div>
+      <Button className="w-full sm:w-auto" onClick={handleCopyInvite}>
+        <Copy size={16} />
+        {copied ? "Copied" : "Copy invite link"}
+      </Button>
+    </div>
   );
 }
 
@@ -543,7 +577,7 @@ function WaitingForTurn({
           <Clock3 size={22} />
         </span>
         <div>
-          <h2 className="text-xl font-semibold">Waiting for the next turn</h2>
+          <h2 className="text-xl font-semibold">Waiting for the rest of the team</h2>
           <p className="mt-1 text-sm leading-6 text-[var(--app-muted)]">
             {round.pendingCount}{" "}
             {round.pendingCount === 1 ? "player still needs" : "players still need"} to submit.
