@@ -43,6 +43,20 @@ describe("prompt packs", () => {
     }
   });
 
+  it("keeps app prompt packs playful instead of mostly plain nouns", () => {
+    for (const packId of PROMPT_PACK_IDS) {
+      if (packId === "mixed") {
+        continue;
+      }
+
+      const expressivePromptCount = getPromptPack(packId).prompts.filter(
+        (prompt) => prompt.split(/\s+/).length >= 3,
+      ).length;
+
+      expect(expressivePromptCount, packId).toBeGreaterThanOrEqual(6);
+    }
+  });
+
   it("selects deterministic, distributed prompts by room seed and player order", () => {
     const first = selectPackPrompt({
       packId: "product-tech",
