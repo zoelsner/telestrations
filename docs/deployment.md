@@ -1,5 +1,17 @@
 # Deployment
 
+## Current Production Frontend
+
+The production app is live at:
+
+```text
+https://telestrations-gamma.vercel.app
+```
+
+The first Vercel production deploy was completed on May 17, 2026. A 10-player
+automated production rehearsal completed successfully against this URL and
+generated `telestrations-5PQW-2026-05-17.pdf`.
+
 ## Current Production Backend
 
 Convex production is deployed at:
@@ -23,10 +35,24 @@ CONVEX_DEPLOYMENT=prod:intent-otter-982 npx convex deploy --typecheck enable
 The first production deploy for this project was completed on May 16, 2026 and
 added the current schema indexes.
 
-## Vercel Setup
+## Vercel Project
 
-The app is a standard Next.js deployment and should use Vercel for the first team
-launch.
+The linked Vercel project is:
+
+```text
+zoelsners-projects/telestrations
+```
+
+Production has:
+
+```text
+NEXT_PUBLIC_CONVEX_URL=https://intent-otter-982.convex.cloud
+```
+
+Use the same value for preview environments until preview Convex deployments are
+intentionally added.
+
+## Deploy Steps
 
 1. Re-authenticate the Vercel CLI if needed:
 
@@ -34,29 +60,19 @@ launch.
    vercel login
    ```
 
-2. Link this repository to a Vercel project:
+2. Confirm this repository is linked to Vercel:
 
    ```bash
-   vercel link
+   vercel project ls
    ```
 
-3. Add the Convex production URL to Vercel:
-
-   ```bash
-   vercel env add NEXT_PUBLIC_CONVEX_URL production
-   vercel env add NEXT_PUBLIC_CONVEX_URL preview
-   ```
-
-   Use `https://intent-otter-982.convex.cloud` for both until preview Convex
-   deployments are intentionally added.
-
-4. Deploy production:
+3. Deploy production:
 
    ```bash
    vercel deploy --prod
    ```
 
-5. Smoke-test the production URL:
+4. Smoke-test the production URL:
    - Create a room.
    - Join from at least two separate browser contexts.
    - Start a game.
@@ -65,8 +81,9 @@ launch.
 
 ## Rehearsal Checklist
 
-Before sharing with the full team, run one real-device rehearsal with 10 to 15
-players.
+Before treating this as fully launch-ready, run one real-device rehearsal with
+10 to 15 players. The automated 10-player production rehearsal already passed,
+but it does not replace real mobile/network coverage.
 
 - Host creates a fresh room from production.
 - Players join by link or room code without accounts.
@@ -79,6 +96,5 @@ players.
 
 ## Known Auth State
 
-On May 16, 2026, Convex CLI auth worked and production Convex deployed
-successfully. Vercel CLI auth was not valid and needs a fresh `vercel login`
-before the production frontend can be deployed.
+On May 17, 2026, Convex and Vercel CLI auth worked, Convex production deployed,
+and Vercel production deployed.
