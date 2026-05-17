@@ -6,6 +6,8 @@ This repo is public, but the app is still an MVP under active development. It is
 designed for anonymous room-code play with a small trusted team, not account
 authentication.
 
+Production app: [https://telestrations-gamma.vercel.app](https://telestrations-gamma.vercel.app)
+
 ## Getting Started
 
 Use Node `22.13.0` or newer on the supported LTS line. The repo includes
@@ -73,5 +75,5 @@ Implemented foundations:
 - Final reveal with PDF export.
 - CI with lint, format check, typecheck, unit tests, build, and Playwright.
 
-Remaining launch work is tracked in GitHub issues, with production frontend
-deployment and the 10 to 15 player rehearsal still to complete.
+Remaining launch work is tracked in GitHub issues, with the real-device 10 to 15
+player rehearsal still to complete.
