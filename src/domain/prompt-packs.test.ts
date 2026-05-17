@@ -21,7 +21,10 @@ describe("prompt packs", () => {
     ]);
     expect(getPromptPackOptions()).toEqual(
       expect.arrayContaining([
-        { id: "office-objects", label: "Office Objects" },
+        { id: "office-objects", label: "Things" },
+        { id: "product-tech", label: "Actions" },
+        { id: "travel", label: "Places" },
+        { id: "abstract-weird", label: "People and Characters" },
         { id: "mixed", label: "Mixed" },
       ]),
     );
@@ -35,25 +38,12 @@ describe("prompt packs", () => {
     });
   });
 
-  it("keeps app prompt pack items quick to draw", () => {
+  it("keeps app prompt pack items card-like and quick to draw", () => {
     for (const packId of PROMPT_PACK_IDS) {
       for (const prompt of getPromptPack(packId).prompts) {
-        expect(prompt.split(/\s+/).length, prompt).toBeLessThanOrEqual(5);
+        expect(prompt.split(/\s+/).length, prompt).toBeLessThanOrEqual(3);
+        expect(prompt, prompt).not.toMatch(/^(A|An|The)\s/);
       }
-    }
-  });
-
-  it("keeps app prompt packs playful instead of mostly plain nouns", () => {
-    for (const packId of PROMPT_PACK_IDS) {
-      if (packId === "mixed") {
-        continue;
-      }
-
-      const expressivePromptCount = getPromptPack(packId).prompts.filter(
-        (prompt) => prompt.split(/\s+/).length >= 3,
-      ).length;
-
-      expect(expressivePromptCount, packId).toBeGreaterThanOrEqual(6);
     }
   });
 
