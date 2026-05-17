@@ -96,6 +96,7 @@ test.describe("app shell", () => {
 
     await expect(page.getByRole("heading", { level: 1, name: "Telestrations" })).toBeVisible();
     await expect(page.getByText("Room F7K2", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Copy invite link" })).toBeVisible();
 
     await expectNoHorizontalOverflow(page);
   });

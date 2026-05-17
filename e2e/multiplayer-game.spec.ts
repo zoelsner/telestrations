@@ -30,15 +30,16 @@ test.describe("multiplayer game loop", () => {
       await submitPrompt(host, "A sprint review with confetti");
 
       await expect(
-        host.getByRole("heading", { name: "Waiting for the next turn" }).first(),
+        host.getByRole("heading", { name: "Waiting for the rest of the team" }).first(),
       ).toBeVisible();
+      await expect(host.getByRole("heading", { name: "Lobby" })).toHaveCount(0);
       await expect(host.getByLabel("Turn status").getByText("Stuck Teammate")).toBeVisible();
 
       await host.getByRole("button", { name: "Skip Stuck Teammate" }).click();
 
       await expect(host.getByText("1 assignment was skipped by the host this turn")).toBeVisible();
       await expect(
-        guestOne.getByRole("heading", { name: "Waiting for the next turn" }).first(),
+        guestOne.getByRole("heading", { name: "Waiting for the rest of the team" }).first(),
       ).toBeVisible();
 
       await submitPrompt(guestTwo, "A roadmap drawn on a napkin");
