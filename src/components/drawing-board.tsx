@@ -177,15 +177,15 @@ export function DrawingBoard({
   }
 
   return (
-    <div className="grid gap-3">
+    <div className="grid min-w-0 gap-3">
       <div
-        className="flex flex-col gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-soft)] p-2 sm:flex-row sm:items-center sm:justify-between"
+        className="flex flex-col gap-3 rounded-xl border-[1.5px] border-[var(--app-border)] bg-[var(--app-panel)] p-2 sm:flex-row sm:items-center sm:justify-between"
         data-testid="drawing-toolbar"
       >
         <div className="flex min-w-0 touch-pan-x items-center gap-2 overflow-x-auto overscroll-x-contain pb-1 sm:pb-0">
           <IconButton
             aria-pressed="true"
-            className="text-[var(--app-foreground)]"
+            className="border-transparent bg-[var(--app-ink)] text-[var(--app-cream)] hover:bg-[var(--app-ink-hover)] hover:text-[var(--app-cream)]"
             disabled={disabled}
             label="Brush tool"
           >
@@ -214,18 +214,19 @@ export function DrawingBoard({
           </IconButton>
         </div>
 
-        <div className="flex min-w-0 touch-pan-x items-center gap-2 overflow-x-auto overscroll-x-contain pb-1 sm:pb-0">
+        <div className="flex min-w-0 touch-pan-x items-end gap-2 overflow-x-auto overscroll-x-contain pb-1 sm:pb-0">
           {DRAWING_COLORS.map((swatch) => (
             <button
               aria-label={`Use ${colorLabels[swatch]}`}
               aria-pressed={color === swatch}
-              className="h-10 w-10 shrink-0 rounded-full border border-black/10 ring-offset-2 transition focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)] sm:h-7 sm:w-7"
+              className="h-6 w-11 shrink-0 self-end rounded-t-full transition focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)] sm:h-[15px] sm:w-[30px]"
               disabled={disabled}
               key={swatch}
               onClick={() => setColor(swatch)}
               style={{
                 backgroundColor: swatch,
-                boxShadow: color === swatch ? "0 0 0 2px var(--app-accent)" : undefined,
+                boxShadow: color === swatch ? "0 2px 0 0 var(--app-accent)" : undefined,
+                transform: color === swatch ? "translateY(-2px)" : undefined,
               }}
               type="button"
             />
@@ -239,9 +240,9 @@ export function DrawingBoard({
             <button
               aria-label={`${size}px brush`}
               aria-pressed={brushSize === size}
-              className={`h-9 shrink-0 rounded-md border px-3 text-sm font-medium transition focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)] ${
+              className={`h-9 shrink-0 rounded-lg border-[1.5px] px-3 text-sm font-medium transition focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)] ${
                 brushSize === size
-                  ? "border-[var(--app-foreground)] bg-[var(--app-foreground)] text-white"
+                  ? "border-transparent bg-[var(--app-ink)] text-[var(--app-cream)]"
                   : "border-[var(--app-border)] bg-white text-[var(--app-muted)] hover:bg-[var(--app-soft)]"
               }`}
               disabled={disabled}
@@ -272,7 +273,7 @@ export function DrawingBoard({
 
       <div
         aria-label="Drawing canvas"
-        className="aspect-[4/3] w-full touch-none select-none overscroll-contain rounded-lg border border-[var(--app-border-strong)] bg-[var(--paper)] p-2 shadow-inner sm:p-4"
+        className="aspect-[4/3] w-full min-w-0 touch-none select-none overscroll-contain rounded-[14px] border-[1.5px] border-[var(--app-border)] bg-[var(--paper)] p-2 shadow-inner sm:p-4"
         data-testid="drawing-canvas"
         role="img"
       >
