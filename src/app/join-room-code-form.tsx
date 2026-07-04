@@ -39,7 +39,7 @@ export function JoinRoomCodeForm() {
         />
       </label>
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
-      <Button className="w-full" type="submit" variant="primary">
+      <Button className="w-full" type="submit" variant="ink">
         <DoorOpen size={16} />
         Join room
       </Button>

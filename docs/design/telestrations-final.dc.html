@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Paytone+One&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#efe8da;font-family:'Outfit',system-ui,sans-serif}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a2540;color:#fdebcc;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 'Outfit',sans-serif;color:#1a2540}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(26,37,64,.1);color:#1a2540;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 12px/1.3 'Outfit',sans-serif;color:rgba(26,37,64,.6)}
+.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.1);border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07);overflow:hidden}
+.dv-opt:target .dv-oid{background:#d44e2a;color:#fdebcc}
+.dv-next{margin:22px 0 0;font:12px/1.5 'Outfit',sans-serif;color:rgba(26,37,64,.55)}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(var(--r,0deg))}50%{transform:translateY(-6px) rotate(var(--r,0deg))}}
+@keyframes blinkdot{50%{opacity:.25}}
+</style>
+</helmet>
+
+<section class="dv-turn" id="t2">
+  <div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">Telestrations — chosen direction (light app, warm accents, half circles)</span></div>
+  <div class="dv-opts">
+
+    <!-- ===== 2g HOME ===== -->
+    <div class="dv-opt" id="2g" data-screen-label="Home — create / join">
+      <div class="dv-olabel"><a class="dv-oid" href="#2g">2g</a>Home — create / join</div>
+      <div class="dv-card" style="width:1020px">
+        <div style="position:relative;background:#f6f5f2;color:#1a2540;padding:32px 40px 36px;overflow:hidden">
+          <div style="position:absolute;top:26px;right:40px;display:flex;align-items:flex-end;gap:10px" aria-hidden="true">
+            <div style="width:54px;height:27px;border-radius:999px 999px 0 0;border:2.5px solid #1a2540;background:#d44e2a;box-shadow:3px 3px 0 0 #1a2540;--r:-12deg;animation:bob 5s ease-in-out infinite"></div>
+            <div style="width:38px;height:19px;border-radius:999px 999px 0 0;border:2.5px solid #1a2540;background:#c8963e;box-shadow:3px 3px 0 0 #1a2540;--r:8deg;animation:bob 6s ease-in-out .6s infinite"></div>
+            <div style="width:26px;height:13px;border-radius:999px 999px 0 0;border:2.5px solid #1a2540;background:#fdebcc;box-shadow:3px 3px 0 0 #1a2540;--r:20deg;animation:bob 7s ease-in-out 1.1s infinite"></div>
+          </div>
+          <p style="margin:0;font:700 12px 'Outfit',sans-serif;letter-spacing:1.6px;text-transform:uppercase;color:#d44e2a">Team drawing game</p>
+          <h1 style="margin:10px 0 0;font:400 44px/1 'Paytone One',sans-serif;color:#1a2540">Telestrations</h1>
+          <p style="margin:12px 0 0;max-width:520px;font:400 16px/1.55 'Outfit',sans-serif;color:#5d6472">Create a room, send the invite link, and play one focused turn at a time.</p>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:28px">
+            <div style="background:#fffdf7;border:1.5px solid #d9d2c2;border-radius:14px;padding:20px 22px;box-shadow:0 1px 2px rgba(26,37,64,.05)">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+                <div>
+                  <h2 style="margin:0;font:600 19px 'Outfit',sans-serif">Create a room</h2>
+                  <p style="margin:5px 0 0;font:400 13.5px/1.5 'Outfit',sans-serif;color:#6b7280">Start as host, then copy the room link for the team.</p>
+                </div>
+                <span style="flex:none;padding:4px 10px;border-radius:999px;background:#fdebcc;border:1.5px solid #e6d3a8;font:700 10.5px 'Outfit',sans-serif;letter-spacing:1px;text-transform:uppercase;color:#8a6a2f">Host</span>
+              </div>
+              <label style="display:block;margin-top:16px;font:700 10.5px 'Outfit',sans-serif;letter-spacing:1.4px;text-transform:uppercase;color:#6b7280">Your name</label>
+              <div style="margin-top:7px;height:44px;display:flex;align-items:center;padding:0 13px;background:#fff;border:1.5px solid #d9d2c2;border-radius:10px;font:400 14px 'Outfit',sans-serif;color:#9aa1ad">Maya</div>
+              <div style="margin-top:14px;display:flex;align-items:center;justify-content:center;gap:8px;height:44px;background:#d44e2a;color:#fdebcc;border:none;border-radius:10px;font:700 13.5px 'Outfit',sans-serif;cursor:pointer" style-hover="background:#bf431f">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4h3a2 2 0 0 1 2 2v14"></path><path d="M2 20h20"></path><path d="M13 20V4L6 8v12"></path></svg>
+                Create room
+              </div>
+            </div>
+            <div style="background:#fffdf7;border:1.5px solid #d9d2c2;border-radius:14px;padding:20px 22px;box-shadow:0 1px 2px rgba(26,37,64,.05)">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+                <div>
+                  <h2 style="margin:0;font:600 19px 'Outfit',sans-serif">Join a room</h2>
+                  <p style="margin:5px 0 0;font:400 13.5px/1.5 'Outfit',sans-serif;color:#6b7280">Use the room code or paste the invite link from your host.</p>
+                </div>
+                <span style="flex:none;padding:4px 10px;border-radius:999px;background:#e8ecf5;border:1.5px solid #c9d2e4;font:700 10.5px 'Outfit',sans-serif;letter-spacing:1px;text-transform:uppercase;color:#3b5a6a">Player</span>
+              </div>
+              <label style="display:block;margin-top:16px;font:700 10.5px 'Outfit',sans-serif;letter-spacing:1.4px;text-transform:uppercase;color:#6b7280">Room code or link</label>
+              <div style="margin-top:7px;height:44px;display:flex;align-items:center;padding:0 13px;background:#fff;border:1.5px solid #d9d2c2;border-radius:10px;font:400 14px 'Outfit',sans-serif;color:#9aa1ad">F7K2 or paste a room link</div>
+              <div style="margin-top:14px;display:flex;align-items:center;justify-content:center;gap:8px;height:44px;background:#1a2540;color:#fdebcc;border:none;border-radius:10px;font:700 13.5px 'Outfit',sans-serif;cursor:pointer" style-hover="background:#111a30">Join room</div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:24px">
+            <div style="background:#fff;border:1.5px solid #d9d2c2;border-radius:12px;padding:14px 16px">
+              <div style="display:flex;align-items:center;gap:8px"><span style="width:26px;height:13px;border-radius:999px 999px 0 0;background:#d44e2a;display:inline-block"></span><span style="font:700 13px 'Outfit',sans-serif">Prompt</span></div>
+              <p style="margin:8px 0 0;font:400 12.5px/1.5 'Outfit',sans-serif;color:#6b7280">Start with player-written prompts or a safe pack.</p>
+            </div>
+            <div style="background:#fff;border:1.5px solid #d9d2c2;border-radius:12px;padding:14px 16px">
+              <div style="display:flex;align-items:center;gap:8px"><span style="width:26px;height:13px;border-radius:999px 999px 0 0;background:#c8963e;display:inline-block"></span><span style="font:700 13px 'Outfit',sans-serif">Draw</span></div>
+              <p style="margin:8px 0 0;font:400 12.5px/1.5 'Outfit',sans-serif;color:#6b7280">Each player sees only the prompt or guess before them.</p>
+            </div>
+            <div style="background:#fff;border:1.5px solid #d9d2c2;border-radius:12px;padding:14px 16px">
+              <div style="display:flex;align-items:center;gap:8px"><span style="width:26px;height:13px;border-radius:999px 999px 0 0;background:#3b5a6a;display:inline-block"></span><span style="font:700 13px 'Outfit',sans-serif">Wait</span></div>
+              <p style="margin:8px 0 0;font:400 12.5px/1.5 'Outfit',sans-serif;color:#6b7280">Submitted players see who is still working.</p>
+            </div>
+            <div style="background:#fff;border:1.5px solid #d9d2c2;border-radius:12px;padding:14px 16px">
+              <div style="display:flex;align-items:center;gap:8px"><span style="width:26px;height:13px;border-radius:999px 999px 0 0;background:#5a7a3a;display:inline-block"></span><span style="font:700 13px 'Outfit',sans-serif">Reveal</span></div>
+              <p style="margin:8px 0 0;font:400 12.5px/1.5 'Outfit',sans-serif;color:#6b7280">Walk through the finished chains and export the archive.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 2a LOBBY ===== -->
+    <div class="dv-opt" id="2a" data-screen-label="Lobby — subtle">
+      <div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>Lobby + host settings</div>
+      <div class="dv-card" style="width:1020px">
+        <div style="position:relative;background:#f6f5f2;color:#1a2540;padding:28px 40px 34px;font-family:'Outfit',sans-serif;overflow:hidden">
+          <div style="position:absolute;top:26px;right:40px;display:flex;align-items:flex-end;gap:10px" aria-hidden="true">
+            <div style="width:44px;height:22px;border-radius:999px 999px 0 0;background:#d44e2a;--r:-10deg;animation:bob 5s ease-in-out infinite"></div>
+            <div style="width:30px;height:15px;border-radius:999px 999px 0 0;background:#c8963e;--r:8deg;animation:bob 6s ease-in-out .5s infinite"></div>
+            <div style="width:20px;height:10px;border-radius:999px 999px 0 0;background:#3b5a6a;--r:18deg;animation:bob 7s ease-in-out 1s infinite"></div>
+          </div>
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding-bottom:18px;border-bottom:1.5px solid #e4e0d8">
+            <div>
+              <p style="margin:0;font:700 11.5px 'Outfit',sans-serif;letter-spacing:1.6px;text-transform:uppercase;color:#d44e2a">Room F7K2</p>
+              <h1 style="margin:4px 0 0;font:400 28px 'Paytone One',sans-serif">Telestrations</h1>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;margin-right:120px">
+              <span style="display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px;border:1.5px solid #d9d2c2;border-radius:10px;background:#fff;font:500 13px 'Outfit',sans-serif;color:#6b7280">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"></path><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"></path></svg>
+                /room/F7K2
+              </span>
+              <span style="display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 18px;background:#d44e2a;border-radius:10px;color:#fdebcc;font:700 13px 'Outfit',sans-serif;cursor:pointer" style-hover="background:#bf431f">Copy invite link</span>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 320px;gap:20px;margin-top:22px">
+            <div style="background:#fffdf7;border:1.5px solid #d9d2c2;border-radius:14px;padding:20px 22px;box-shadow:0 1px 2px rgba(26,37,64,.05)">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div>
+                  <h2 style="margin:0;font:600 19px 'Outfit',sans-serif">Lobby</h2>
+                  <p style="margin:4px 0 0;font:400 13.5px 'Outfit',sans-serif;color:#6b7280">6/15 players joined</p>
+                </div>
+                <span style="padding:4px 12px;border-radius:999px;background:#eaf0dd;border:1.5px solid #c9d6ad;font:700 10.5px 'Outfit',sans-serif;letter-spacing:1.2px;text-transform:uppercase;color:#5a7a3a">Waiting</span>
+              </div>
+              <div style="display:grid;gap:8px;margin-top:16px">
+                <div style="display:flex;align-items:center;justify-content:space-between;min-height:48px;padding:6px 14px;background:#fdebcc;border:1.5px solid #e6d3a8;border-radius:10px">
+                  <div style="display:flex;align-items:center;gap:12px">
+                    <span style="width:32px;height:16px;border-radius:999px 999px 0 0;background:#d44e2a;align-self:flex-end;margin-bottom:5px"></span>
+                    <span style="font:600 14.5px 'Outfit',sans-serif">Maya</span>
+                    <span style="font:600 10.5px 'Outfit',sans-serif;color:#8a8275;letter-spacing:.5px">YOU</span>
+                  </div>
+                  <span style="display:inline-flex;align-items:center;gap:6px;font:700 10.5px 'Outfit',sans-serif;letter-spacing:1px;text-transform:uppercase;color:#8a6a2f">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="#c8963e" stroke="#8a6a2f" stroke-width="1.4" stroke-linejoin="round"><path d="M3 18l2-10 5 5 2-8 2 8 5-5 2 10z"></path></svg>
+                    Host
+                  </span>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;min-height:48px;padding:6px 14px;background:#fff;border:1.5px solid #e4e0d8;border-radius:10px">
+                  <div style="display:flex;align-items:center;gap:12px"><span style="width:32px;height:16px;border-radius:999px 999px 0 0;background:#c8963e;align-self:flex-end;margin-bottom:5px"></span><span style="font:600 14.5px 'Outfit',sans-serif">Taylor</span></div>
+                  <span style="font:500 12px 'Outfit',sans-serif;color:#8a8275">connected</span>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;min-height:48px;padding:6px 14px;background:#fff;border:1.5px solid #e4e0d8;border-radius:10px">
+                  <div style="display:flex;align-items:center;gap:12px"><span style="width:32px;height:16px;border-radius:999px 999px 0 0;background:#3b5a6a;align-self:flex-end;margin-bottom:5px"></span><span style="font:600 14.5px 'Outfit',sans-serif">Jordan</span></div>
+                  <span style="font:500 12px 'Outfit',sans-serif;color:#8a8275">connected</span>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;min-height:48px;padding:6px 14px;background:#fff;border:1.5px solid #e4e0d8;border-radius:10px">
+                  <div style="display:flex;align-items:center;gap:12px"><span style="width:32px;height:16px;border-radius:999px 999px 0 0;background:#7a5a7f;align-self:flex-end;margin-bottom:5px"></span><span style="font:600 14.5px 'Outfit',sans-serif">Sam</span></div>
+                  <span style="font:500 12px 'Outfit',sans-serif;color:#8a8275">connected</span>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;min-height:48px;padding:6px 14px;background:#fff;border:1.5px solid #e4e0d8;border-radius:10px">
+                  <div style="display:flex;align-items:center;gap:12px"><span style="width:32px;height:16px;border-radius:999px 999px 0 0;background:#5a7a3a;align-self:flex-end;margin-bottom:5px"></span><span style="font:600 14.5px 'Outfit',sans-serif">Priya</span></div>
+                  <span style="font:500 12px 'Outfit',sans-serif;color:#8a8275">connected</span>
+                </div>
+                <div style="display:flex;align-items:center;min-height:48px;padding:6px 14px;background:#fff;border:1.5px dashed #d9d2c2;border-radius:10px;opacity:.7">
+                  <div style="display:flex;align-items:center;gap:12px"><span style="width:32px;height:16px;border-radius:999px 999px 0 0;background:#efe8da;border:1.5px dashed #c4baa2;align-self:flex-end;margin-bottom:5px"></span><span style="font:500 13.5px 'Outfit',sans-serif;color:#a89d84">Waiting for player 7…</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:grid;gap:14px;align-content:start">
+              <div style="background:#fffdf7;border:1.5px solid #d9d2c2;border-radius:14px;padding:16px 18px;box-shadow:0 1px 2px rgba(26,37,64,.05)">
+                <p style="margin:0;font:700 10.5px 'Outfit',sans-serif;letter-spacing:1.4px;text-transform:uppercase;color:#8a6a2f">Prompts</p>
+                <div style="display:flex;gap:8px;margin-top:10px">
+                  <span style="flex:1;text-align:center;padding:8px 0;border-radius:8px;background:#1a2540;color:#fdebcc;font:600 12px 'Outfit',sans-serif;cursor:pointer">Players write</span>
+                  <span style="flex:1;text-align:center;padding:8px 0;border:1.5px solid #d9d2c2;border-radius:8px;background:#fff;color:#1a2540;font:600 12px 'Outfit',sans-serif;cursor:pointer" style-hover="background:#f0eee8">App pack</span>
+                </div>
+              </div>
+              <div style="background:#fffdf7;border:1.5px solid #d9d2c2;border-radius:14px;padding:16px 18px;box-shadow:0 1px 2px rgba(26,37,64,.05)">
+                <p style="margin:0;font:700 10.5px 'Outfit',sans-serif;letter-spacing:1.4px;text-transform:uppercase;color:#3b5a6a">Timers</p>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;font:500 13.5px 'Outfit',sans-serif">
+                  <span style="color:#6b7280">Drawing</span>
+                  <span style="padding:5px 14px;border:1.5px solid #d9d2c2;border-radius:8px;background:#fff;font:600 12.5px 'Outfit',sans-serif">90s ▾</span>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;font:500 13.5px 'Outfit',sans-serif">
+                  <span style="color:#6b7280">Guessing</span>
+                  <span style="padding:5px 14px;border:1.5px solid #d9d2c2;border-radius:8px;background:#fff;font:600 12.5px 'Outfit',sans-serif">60s ▾</span>
+                </div>
+              </div>
+              <div>
+                <span style="display:flex;align-items:center;justify-content:center;gap:9px;height:48px;background:#d44e2a;border-radius:10px;color:#fdebcc;font:700 14px 'Outfit',sans-serif;cursor:pointer" style-hover="background:#bf431f">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z"></path></svg>
+                  Start game
+                </span>
+                <p style="margin:8px 0 0;text-align:center;font:400 12px 'Outfit',sans-serif;color:#8a8275">Needs at least 4 players for a good chain.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 2b PROMPT ===== -->
+    <div class="dv-opt" id="2b" data-screen-label="Prompt turn — subtle">
+      <div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a>Prompt turn</div>
+      <div class="dv-card" style="width:1020px">
+        <div style="position:relative;background:#f6f5f2;color:#1a2540;padding:28px 40px 40px;font-family:'Outfit',sans-serif;overflow:hidden">
+          <div style="position:absolute;bottom:-26px;left:-14px;width:120px;height:60px;border-radius:999px 999px 0 0;background:#fdebcc;transform:rotate(6deg)" aria-hidden="true"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:18px;border-bottom:1.5px solid #e4e0d8">
+            <div style="display:flex;align-items:center;gap:14px">
+              <span style="display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:54px;height:54px;border-radius:12px;background:#fdebcc;border:1.5px solid #e6d3a8;color:#8a6a2f">
+                <span style="font:700 8.5px 'Outfit',sans-serif;letter-spacing:1px">TURN</span>
+                <span style="font:400 20px/1 'Paytone One',sans-serif;color:#1a2540">1</span>
+              </span>
+              <div>
+                <p style="margin:0;font:700 11.5px 'Outfit',sans-serif;letter-spacing:1.6px;text-transform:uppercase;color:#d44e2a">Your move</p>
+                <h2 style="margin:4px 0 0;font:400 26px 'Paytone One',sans-serif">Write a prompt</h2>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 16px;border:1.5px solid #d9d2c2;border-radius:10px;background:#fff;font:700 15px ui-monospace,Menlo,monospace">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2.5 2.5"></path><path d="M9 2h6"></path></svg>
+                0:42
+              </span>
+              <span style="display:inline-flex;align-items:center;gap:12px;height:42px;padding:0 16px;border:1.5px solid #d9d2c2;border-radius:10px;background:#fff;font:600 12px 'Outfit',sans-serif">
+                <span style="color:#5a7a3a">3 done</span><span style="color:#d44e2a">2 pending</span><span style="color:#8a8275">5 total</span>
+              </span>
+            </div>
+          </div>
+
+          <div style="max-width:620px;margin:32px auto 0;position:relative;z-index:2">
+            <div style="display:flex;align-items:center;gap:10px;padding:11px 15px;border:1.5px solid #e6d3a8;border-radius:10px;background:#fdebcc;font:400 13.5px 'Outfit',sans-serif;color:#6d6350">
+              <span style="width:22px;height:11px;border-radius:999px 999px 0 0;background:#d44e2a;flex:none"></span>
+              You're starting a new chain — keep it short and work-safe.
+            </div>
+            <label style="display:block;margin-top:20px;font:700 10.5px 'Outfit',sans-serif;letter-spacing:1.4px;text-transform:uppercase;color:#6b7280">Your prompt</label>
+            <div style="margin-top:7px;display:flex;align-items:center;padding:0 16px;height:52px;background:#fff;border:1.5px solid #d9d2c2;border-radius:10px;font:500 16px 'Outfit',sans-serif">A project kickoff on roller skates<span style="width:2px;height:22px;background:#d44e2a;margin-left:2px"></span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:9px;font:500 12px 'Outfit',sans-serif;color:#8a8275">
+              <span>Keep it safe for work.</span><span>33/80</span>
+            </div>
+            <span style="display:inline-flex;align-items:center;gap:9px;margin-top:18px;height:46px;padding:0 26px;background:#d44e2a;border-radius:10px;color:#fdebcc;font:700 13.5px 'Outfit',sans-serif;cursor:pointer" style-hover="background:#bf431f">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"></path><path d="M22 2l-7 20-4-9-9-4z"></path></svg>
+              Send it down the line
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 2c DRAWING ===== -->
+    <div class="dv-opt" id="2c" data-screen-label="Drawing turn — subtle">
+      <div class="dv-olabel"><a class="dv-oid" href="#2c">2c</a>Drawing turn</div>
+      <div class="dv-card" style="width:1020px">
+        <div style="background:#f6f5f2;color:#1a2540;padding:28px 40px 34px;font-family:'Outfit',sans-serif">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:18px;border-bottom:1.5px solid #e4e0d8">
+            <div style="display:flex;align-items:center;gap:14px">
+              <span style="display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:54px;height:54px;border-radius:12px;background:#fdebcc;border:1.5px solid #e6d3a8;color:#8a6a2f">
+                <span style="font:700 8.5px 'Outfit',sans-serif;letter-spacing:1px">TURN</span>
+                <span style="font:400 20px/1 'Paytone One',sans-serif;color:#1a2540">2</span>
+              </span>
+              <div>
+                <p style="margin:0;font:700 11.5px 'Outfit',sans-serif;letter-spacing:1.6px;text-transform:uppercase;color:#d44e2a">Your move</p>
+                <h2 style="margin:4px 0 0;font:400 26px 'Paytone One',sans-serif">Draw this</h2>
+              </div>
+            </div>
+            <span style="display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 16px;border-radius:10px;background:#d44e2a;color:#fdebcc;font:700 15px ui-monospace,Menlo,monospace">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2.5 2.5"></path><path d="M9 2h6"></path></svg>
+              0:18
+            </span>
+          </div>
+
+          <div style="margin-top:18px;display:flex;align-items:center;gap:12px;padding:13px 18px;border:1.5px solid #e6d3a8;border-radius:12px;background:#fdebcc">
+            <span style="width:26px;height:13px;border-radius:999px 999px 0 0;background:#c8963e;flex:none"></span>
+            <span style="font:700 10px 'Outfit',sans-serif;letter-spacing:1.4px;text-transform:uppercase;color:#8a6a2f;flex:none">Prompt · turn 1</span>
+            <span style="font:400 18px 'Paytone One',sans-serif">“A project kickoff on roller skates”</span>
+          </div>
+
+          <div style="margin-top:16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:9px 12px;border:1.5px solid #d9d2c2;border-radius:12px;background:#fffdf7">
+              <div style="display:flex;align-items:center;gap:7px">
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:9px;background:#1a2540;color:#fdebcc;cursor:pointer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.06 11.9l8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"></path><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z"></path></svg></span>
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:1.5px solid #d9d2c2;border-radius:9px;background:#fff;color:#6b7280;cursor:pointer" style-hover="background:#f0eee8"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg></span>
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:1.5px solid #d9d2c2;border-radius:9px;background:#fff;color:#6b7280;cursor:pointer" style-hover="background:#f0eee8"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"></path><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"></path></svg></span>
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:1.5px solid #d9d2c2;border-radius:9px;background:#fff;color:#6b7280;cursor:pointer" style-hover="background:#f0eee8"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 19H8L2.7 13.7a1 1 0 0 1 0-1.4L12 3l8 8-6.3 6.3"></path><path d="M6 11l7 7"></path></svg></span>
+              </div>
+              <div style="display:flex;align-items:flex-end;gap:8px;padding:0 4px">
+                <span style="width:30px;height:15px;border-radius:999px 999px 0 0;background:#111827;box-shadow:0 2px 0 0 #d44e2a;cursor:pointer;transform:translateY(-2px)"></span>
+                <span style="width:30px;height:15px;border-radius:999px 999px 0 0;background:#6b7280;cursor:pointer" style-hover="transform:translateY(-2px)"></span>
+                <span style="width:30px;height:15px;border-radius:999px 999px 0 0;background:#ef4444;cursor:pointer" style-hover="transform:translateY(-2px)"></span>
+                <span style="width:30px;height:15px;border-radius:999px 999px 0 0;background:#f97316;cursor:pointer" style-hover="transform:translateY(-2px)"></span>
+                <span style="width:30px;height:15px;border-radius:999px 999px 0 0;background:#eab308;cursor:pointer" style-hover="transform:translateY(-2px)"></span>
+                <span style="width:30px;height:15px;border-radius:999px 999px 0 0;background:#22c55e;cursor:pointer" style-hover="transform:translateY(-2px)"></span>
+                <span style="width:30px;height:15px;border-radius:999px 999px 0 0;background:#2563eb;cursor:pointer" style-hover="transform:translateY(-2px)"></span>
+                <span style="width:30px;height:15px;border-radius:999px 999px 0 0;background:#7c3aed;cursor:pointer" style-hover="transform:translateY(-2px)"></span>
+              </div>
+            </div>
+
+            <div style="margin-top:14px;border:1.5px solid #d9d2c2;border-radius:14px;background:#fffdf7;padding:12px;box-shadow:inset 0 1px 3px rgba(26,37,64,.06)">
+              <svg viewBox="0 0 800 500" style="display:block;width:100%;height:auto" role="img" aria-label="Drawing in progress">
+                <rect x="0" y="0" width="800" height="500" fill="#fffdf7"></rect>
+                <rect x="80" y="75" width="240" height="155" rx="6" fill="none" stroke="#111827" stroke-width="5"></rect>
+                <path d="M105 115 q40 -18 80 0 t80 0" fill="none" stroke="#111827" stroke-width="4" stroke-linecap="round"></path>
+                <path d="M105 155 h150 M105 188 h110" stroke="#111827" stroke-width="4" stroke-linecap="round"></path>
+                <line x1="200" y1="230" x2="200" y2="290" stroke="#111827" stroke-width="5" stroke-linecap="round"></line>
+                <circle cx="520" cy="160" r="36" fill="none" stroke="#111827" stroke-width="5"></circle>
+                <path d="M506 155 a4 4 0 1 0 .1 0 M534 155 a4 4 0 1 0 .1 0" fill="#111827"></path>
+                <path d="M506 175 q14 13 28 0" fill="none" stroke="#111827" stroke-width="4" stroke-linecap="round"></path>
+                <line x1="520" y1="196" x2="520" y2="315" stroke="#111827" stroke-width="5" stroke-linecap="round"></line>
+                <path d="M520 228 L457 262 M520 228 L588 248" stroke="#111827" stroke-width="5" stroke-linecap="round"></path>
+                <path d="M520 315 L481 385 M520 315 L563 385" stroke="#111827" stroke-width="5" stroke-linecap="round"></path>
+                <rect x="450" y="385" width="68" height="25" rx="8" fill="none" stroke="#111827" stroke-width="5"></rect>
+                <rect x="538" y="385" width="68" height="25" rx="8" fill="none" stroke="#111827" stroke-width="5"></rect>
+                <circle cx="468" cy="422" r="10" fill="none" stroke="#ef4444" stroke-width="5"></circle>
+                <circle cx="498" cy="422" r="10" fill="none" stroke="#ef4444" stroke-width="5"></circle>
+                <circle cx="556" cy="422" r="10" fill="none" stroke="#ef4444" stroke-width="5"></circle>
+                <circle cx="586" cy="422" r="10" fill="none" stroke="#ef4444" stroke-width="5"></circle>
+                <path d="M420 415 h-58 M430 437 h-78" stroke="#2563eb" stroke-width="4" stroke-linecap="round"></path>
+              </svg>
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:13px">
+              <div style="display:flex;gap:7px">
+                <span style="padding:8px 15px;border:1.5px solid #d9d2c2;border-radius:8px;background:#fff;font:600 12.5px 'Outfit',sans-serif;color:#6b7280;cursor:pointer" style-hover="background:#f0eee8">4px</span>
+                <span style="padding:8px 15px;border-radius:8px;background:#1a2540;color:#fdebcc;font:600 12.5px 'Outfit',sans-serif;cursor:pointer">8px</span>
+                <span style="padding:8px 15px;border:1.5px solid #d9d2c2;border-radius:8px;background:#fff;font:600 12.5px 'Outfit',sans-serif;color:#6b7280;cursor:pointer" style-hover="background:#f0eee8">14px</span>
+              </div>
+              <span style="display:inline-flex;align-items:center;gap:9px;height:46px;padding:0 26px;background:#d44e2a;border-radius:10px;color:#fdebcc;font:700 13.5px 'Outfit',sans-serif;cursor:pointer" style-hover="background:#bf431f">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"></path><path d="M22 2l-7 20-4-9-9-4z"></path></svg>
+                Pass it on
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 2d GUESS ===== -->
+    <div class="dv-opt" id="2d" data-screen-label="Guess turn — subtle">
+      <div class="dv-olabel"><a class="dv-oid" href="#2d">2d</a>Guess turn</div>
+      <div class="dv-card" style="width:1020px">
+        <div style="background:#f6f5f2;color:#1a2540;padding:28px 40px 36px;font-family:'Outfit',sans-serif">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:18px;border-bottom:1.5px solid #e4e0d8">
+            <div style="display:flex;align-items:center;gap:14px">
+              <span style="display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:54px;height:54px;border-radius:12px;background:#fdebcc;border:1.5px solid #e6d3a8;color:#8a6a2f">
+                <span style="font:700 8.5px 'Outfit',sans-serif;letter-spacing:1px">TURN</span>
+                <span style="font:400 20px/1 'Paytone One',sans-serif;color:#1a2540">3</span>
+              </span>
+              <div>
+                <p style="margin:0;font:700 11.5px 'Outfit',sans-serif;letter-spacing:1.6px;text-transform:uppercase;color:#d44e2a">Your move</p>
+                <h2 style="margin:4px 0 0;font:400 26px 'Paytone One',sans-serif">What is this?</h2>
+              </div>
+            </div>
+            <span style="display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 16px;border:1.5px solid #d9d2c2;border-radius:10px;background:#fff;font:700 15px ui-monospace,Menlo,monospace">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2.5 2.5"></path><path d="M9 2h6"></path></svg>
+              0:51
+            </span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:24px;margin-top:20px;align-items:start">
+            <div style="border:1.5px solid #d9d2c2;border-radius:14px;background:#fffdf7;padding:12px;box-shadow:0 1px 2px rgba(26,37,64,.05)">
+              <p style="margin:2px 4px 8px;font:700 10px 'Outfit',sans-serif;letter-spacing:1.4px;text-transform:uppercase;color:#8a8275">Drawing · turn 2 · by Jordan</p>
+              <svg viewBox="0 0 800 450" style="display:block;width:100%;height:auto" role="img" aria-label="Previous drawing">
+                <rect x="0" y="0" width="800" height="450" fill="#fffdf7"></rect>
+                <rect x="80" y="70" width="240" height="150" rx="6" fill="none" stroke="#111827" stroke-width="5"></rect>
+                <path d="M105 110 q40 -18 80 0 t80 0" fill="none" stroke="#111827" stroke-width="4" stroke-linecap="round"></path>
+                <path d="M105 150 h150 M105 182 h110" stroke="#111827" stroke-width="4" stroke-linecap="round"></path>
+                <circle cx="520" cy="150" r="34" fill="none" stroke="#111827" stroke-width="5"></circle>
+                <path d="M508 145 a4 4 0 1 0 .1 0 M532 145 a4 4 0 1 0 .1 0" fill="#111827"></path>
+                <path d="M506 165 q14 12 28 0" fill="none" stroke="#111827" stroke-width="4" stroke-linecap="round"></path>
+                <line x1="520" y1="184" x2="520" y2="290" stroke="#111827" stroke-width="5" stroke-linecap="round"></line>
+                <path d="M520 215 L460 250 M520 215 L585 235" stroke="#111827" stroke-width="5" stroke-linecap="round"></path>
+                <path d="M520 290 L482 355 M520 290 L562 355" stroke="#111827" stroke-width="5" stroke-linecap="round"></path>
+                <rect x="452" y="355" width="66" height="24" rx="8" fill="none" stroke="#111827" stroke-width="5"></rect>
+                <rect x="538" y="355" width="66" height="24" rx="8" fill="none" stroke="#111827" stroke-width="5"></rect>
+                <circle cx="470" cy="390" r="10" fill="none" stroke="#ef4444" stroke-width="5"></circle>
+                <circle cx="498" cy="390" r="10" fill="none" stroke="#ef4444" stroke-width="5"></circle>
+                <circle cx="556" cy="390" r="10" fill="none" stroke="#ef4444" stroke-width="5"></circle>
+                <circle cx="586" cy="390" r="10" fill="none" stroke="#ef4444" stroke-width="5"></circle>
+                <path d="M430 385 h-55 M440 405 h-75" stroke="#2563eb" stroke-width="4" stroke-linecap="round"></path>
+              </svg>
+            </div>
+            <div>
+              <label style="display:block;font:700 10.5px 'Outfit',sans-serif;letter-spacing:1.4px;text-transform:uppercase;color:#6b7280">Your guess</label>
+              <div style="margin-top:7px;display:flex;align-items:center;padding:0 15px;height:48px;background:#fff;border:1.5px solid #d9d2c2;border-radius:10px;font:400 15px 'Outfit',sans-serif;color:#9aa1ad">Type what you see…</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;font:500 12px 'Outfit',sans-serif;color:#8a8275">
+                <span>One clear guess is enough.</span><span>0/60</span>
+              </div>
+              <span style="display:flex;align-items:center;justify-content:center;gap:9px;margin-top:16px;height:46px;background:#d44e2a;border-radius:10px;color:#fdebcc;font:700 13.5px 'Outfit',sans-serif;cursor:pointer" style-hover="background:#bf431f">Lock in guess</span>
+              <div style="margin-top:20px;padding:13px 15px;border:1.5px dashed #d9d2c2;border-radius:10px;font:400 12.5px/1.5 'Outfit',sans-serif;color:#8a8275">
+                Only you can see this drawing. Your guess becomes the next player's prompt.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 2e WAITING ===== -->
+    <div class="dv-opt" id="2e" data-screen-label="Waiting — subtle">
+      <div class="dv-olabel"><a class="dv-oid" href="#2e">2e</a>Waiting room</div>
+      <div class="dv-card" style="width:1020px">
+        <div style="position:relative;background:#f6f5f2;color:#1a2540;padding:28px 40px 34px;font-family:'Outfit',sans-serif;overflow:hidden">
+          <div style="position:absolute;top:0;right:70px;width:130px;height:65px;border-radius:0 0 999px 999px;background:#fdebcc" aria-hidden="true"></div>
+          <div style="display:flex;align-items:center;gap:16px;padding-bottom:18px;border-bottom:1.5px solid #e4e0d8;position:relative;z-index:1">
+            <span style="display:inline-flex;align-items:flex-end;justify-content:center;width:56px;height:56px;border:1.5px solid #e6d3a8;border-radius:14px;background:#fdebcc;padding-bottom:9px">
+              <span style="display:flex;gap:4px">
+                <span style="width:8px;height:8px;border-radius:99px;background:#d44e2a;animation:blinkdot 1.2s infinite"></span>
+                <span style="width:8px;height:8px;border-radius:99px;background:#c8963e;animation:blinkdot 1.2s .2s infinite"></span>
+                <span style="width:8px;height:8px;border-radius:99px;background:#3b5a6a;animation:blinkdot 1.2s .4s infinite"></span>
+              </span>
+            </span>
+            <div>
+              <h2 style="margin:0;font:400 26px 'Paytone One',sans-serif">You're in — 2 to go</h2>
+              <p style="margin:4px 0 0;font:400 14px 'Outfit',sans-serif;color:#6b7280">Stretch your drawing hand. The round moves when everyone submits.</p>
+            </div>
+          </div>
+
+          <div style="display:grid;gap:9px;margin-top:20px;max-width:700px">
+            <div style="display:flex;align-items:center;justify-content:space-between;min-height:50px;padding:8px 15px;background:#fff;border:1.5px solid #e4e0d8;border-radius:10px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:999px;background:#5a7a3a;color:#fdebcc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></span>
+                <span style="font:600 14.5px 'Outfit',sans-serif">Maya <span style="font:600 10.5px 'Outfit',sans-serif;color:#8a8275;letter-spacing:.5px">YOU · HOST</span></span>
+              </div>
+              <span style="font:700 10.5px 'Outfit',sans-serif;letter-spacing:1.1px;text-transform:uppercase;color:#5a7a3a">Submitted</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;min-height:50px;padding:8px 15px;background:#fff;border:1.5px solid #e4e0d8;border-radius:10px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:999px;background:#5a7a3a;color:#fdebcc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></span>
+                <span style="font:600 14.5px 'Outfit',sans-serif">Taylor</span>
+              </div>
+              <span style="font:700 10.5px 'Outfit',sans-serif;letter-spacing:1.1px;text-transform:uppercase;color:#5a7a3a">Submitted</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;min-height:50px;padding:8px 15px;background:#fdebcc;border:1.5px solid #e6d3a8;border-radius:10px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:999px;background:#fff;border:1.5px solid #e6d3a8;color:#8a6a2f"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v4l2.5 2.5"></path></svg></span>
+                <span style="font:600 14.5px 'Outfit',sans-serif">Jordan <span style="font:500 12px 'Outfit',sans-serif;color:#a3722d">still drawing…</span></span>
+              </div>
+              <span style="display:inline-flex;align-items:center;gap:6px;padding:7px 15px;border:1.5px solid #d9d2c2;border-radius:8px;background:#fff;font:700 10.5px 'Outfit',sans-serif;letter-spacing:1.1px;text-transform:uppercase;cursor:pointer" style-hover="background:#f0eee8">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4l10 8-10 8z"></path><path d="M19 5v14"></path></svg>
+                Skip
+              </span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;min-height:50px;padding:8px 15px;background:#fdebcc;border:1.5px solid #e6d3a8;border-radius:10px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:999px;background:#fff;border:1.5px solid #e6d3a8;color:#8a6a2f"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v4l2.5 2.5"></path></svg></span>
+                <span style="font:600 14.5px 'Outfit',sans-serif">Priya <span style="font:500 12px 'Outfit',sans-serif;color:#a3722d">still drawing…</span></span>
+              </div>
+              <span style="display:inline-flex;align-items:center;gap:6px;padding:7px 15px;border:1.5px solid #d9d2c2;border-radius:8px;background:#fff;font:700 10.5px 'Outfit',sans-serif;letter-spacing:1.1px;text-transform:uppercase;cursor:pointer" style-hover="background:#f0eee8">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4l10 8-10 8z"></path><path d="M19 5v14"></path></svg>
+                Skip
+              </span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;min-height:50px;padding:8px 15px;background:#fff;border:1.5px solid #e4e0d8;border-radius:10px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:999px;background:#5a7a3a;color:#fdebcc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></span>
+                <span style="font:600 14.5px 'Outfit',sans-serif">Sam</span>
+              </div>
+              <span style="font:700 10.5px 'Outfit',sans-serif;letter-spacing:1.1px;text-transform:uppercase;color:#5a7a3a">Submitted</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 2f REVEAL ===== -->
+    <div class="dv-opt" id="2f" data-screen-label="Final reveal — subtle">
+      <div class="dv-olabel"><a class="dv-oid" href="#2f">2f</a>Final reveal</div>
+      <div class="dv-card" style="width:1020px">
+        <div style="position:relative;background:#f6f5f2;color:#1a2540;padding:28px 40px 36px;font-family:'Outfit',sans-serif;overflow:hidden">
+          <div style="position:absolute;bottom:30px;left:12px;width:48px;height:24px;border-radius:999px 999px 0 0;background:#e9dff0;transform:rotate(10deg)" aria-hidden="true"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:18px;border-bottom:1.5px solid #e4e0d8">
+            <div>
+              <p style="margin:0;font:700 11.5px 'Outfit',sans-serif;letter-spacing:1.6px;text-transform:uppercase;color:#d44e2a">Room F7K2 · the big finish</p>
+              <h2 style="margin:4px 0 0;font:400 28px 'Paytone One',sans-serif">Final reveal</h2>
+            </div>
+            <div style="display:flex;align-items:center;gap:9px">
+              <span style="display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border:1.5px solid #d9d2c2;border-radius:10px;background:#fff;font:600 12.5px 'Outfit',sans-serif;color:#1a2540;cursor:pointer" style-hover="background:#f0eee8">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M7 10l5 5 5-5"></path><path d="M12 15V3"></path></svg>
+                Export PDF
+              </span>
+              <span style="display:inline-flex;align-items:center;height:40px;padding:0 16px;border:1.5px solid #d9d2c2;border-radius:10px;background:#fff;font:600 12.5px 'Outfit',sans-serif;cursor:pointer" style-hover="background:#f0eee8">‹ Prev</span>
+              <span style="display:inline-flex;align-items:center;height:40px;padding:0 16px;background:#d44e2a;border-radius:10px;color:#fdebcc;font:600 12.5px 'Outfit',sans-serif;cursor:pointer" style-hover="background:#bf431f">Next ›</span>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:210px minmax(0,1fr);gap:22px;margin-top:20px">
+            <nav aria-label="Chains" style="display:grid;gap:8px;align-content:start">
+              <span style="padding:11px 13px;border-radius:10px;background:#1a2540;color:#fdebcc;cursor:pointer">
+                <span style="display:block;font:600 13px 'Outfit',sans-serif">Chain 2</span>
+                <span style="display:block;font:400 11.5px 'Outfit',sans-serif;color:#a8b0c4">started by Maya</span>
+              </span>
+              <span style="padding:11px 13px;border:1.5px solid #e4e0d8;border-radius:10px;background:#fff;cursor:pointer" style-hover="background:#f0eee8">
+                <span style="display:block;font:600 13px 'Outfit',sans-serif">Chain 1</span>
+                <span style="display:block;font:400 11.5px 'Outfit',sans-serif;color:#8a8275">started by Taylor</span>
+              </span>
+              <span style="padding:11px 13px;border:1.5px solid #e4e0d8;border-radius:10px;background:#fff;cursor:pointer" style-hover="background:#f0eee8">
+                <span style="display:block;font:600 13px 'Outfit',sans-serif">Chain 3</span>
+                <span style="display:block;font:400 11.5px 'Outfit',sans-serif;color:#8a8275">started by Jordan</span>
+              </span>
+              <span style="padding:11px 13px;border:1.5px solid #e4e0d8;border-radius:10px;background:#fff;cursor:pointer" style-hover="background:#f0eee8">
+                <span style="display:block;font:600 13px 'Outfit',sans-serif">Chain 4</span>
+                <span style="display:block;font:400 11.5px 'Outfit',sans-serif;color:#8a8275">started by Sam</span>
+              </span>
+              <span style="padding:11px 13px;border:1.5px solid #e4e0d8;border-radius:10px;background:#fff;cursor:pointer" style-hover="background:#f0eee8">
+                <span style="display:block;font:600 13px 'Outfit',sans-serif">Chain 5</span>
+                <span style="display:block;font:400 11.5px 'Outfit',sans-serif;color:#8a8275">started by Priya</span>
+              </span>
+            </nav>
+
+            <section style="min-width:0">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+                <h3 style="margin:0;font:400 20px 'Paytone One',sans-serif">Maya's chain</h3>
+                <span style="font:600 12.5px 'Outfit',sans-serif;color:#8a8275">2 / 5</span>
+              </div>
+              <div style="display:grid;gap:12px;margin-top:12px">
+                <article style="background:#fffdf7;border:1.5px solid #d9d2c2;border-radius:12px;padding:15px 17px;box-shadow:0 1px 2px rgba(26,37,64,.05)">
+                  <div style="display:flex;justify-content:space-between;font:700 10px 'Outfit',sans-serif;letter-spacing:1.3px;text-transform:uppercase;color:#8a8275"><span>Turn 1 · Prompt</span><span>Maya</span></div>
+                  <p style="margin:7px 0 0;font:400 19px 'Paytone One',sans-serif">“A project kickoff on roller skates”</p>
+                </article>
+                <article style="background:#fffdf7;border:1.5px solid #d9d2c2;border-radius:12px;padding:15px 17px;box-shadow:0 1px 2px rgba(26,37,64,.05)">
+                  <div style="display:flex;justify-content:space-between;font:700 10px 'Outfit',sans-serif;letter-spacing:1.3px;text-transform:uppercase;color:#8a8275"><span>Turn 2 · Drawing</span><span>Jordan</span></div>
+                  <svg viewBox="0 0 800 360" style="display:block;width:100%;height:auto;margin-top:10px;border:1.5px solid #eee5d2;border-radius:8px" role="img" aria-label="Chain drawing">
+                    <rect x="0" y="0" width="800" height="360" fill="#fffdf7"></rect>
+                    <rect x="90" y="55" width="200" height="120" rx="6" fill="none" stroke="#111827" stroke-width="5"></rect>
+                    <path d="M112 90 q35 -15 70 0 t70 0" fill="none" stroke="#111827" stroke-width="4" stroke-linecap="round"></path>
+                    <path d="M112 122 h130 M112 148 h95" stroke="#111827" stroke-width="4" stroke-linecap="round"></path>
+                    <circle cx="510" cy="112" r="28" fill="none" stroke="#111827" stroke-width="5"></circle>
+                    <line x1="510" y1="140" x2="510" y2="230" stroke="#111827" stroke-width="5" stroke-linecap="round"></line>
+                    <path d="M510 165 L460 193 M510 165 L565 180" stroke="#111827" stroke-width="5" stroke-linecap="round"></path>
+                    <path d="M510 230 L480 283 M510 230 L546 283" stroke="#111827" stroke-width="5" stroke-linecap="round"></path>
+                    <rect x="452" y="283" width="56" height="21" rx="7" fill="none" stroke="#111827" stroke-width="5"></rect>
+                    <rect x="522" y="283" width="56" height="21" rx="7" fill="none" stroke="#111827" stroke-width="5"></rect>
+                    <circle cx="467" cy="313" r="8" fill="none" stroke="#ef4444" stroke-width="5"></circle>
+                    <circle cx="492" cy="313" r="8" fill="none" stroke="#ef4444" stroke-width="5"></circle>
+                    <circle cx="537" cy="313" r="8" fill="none" stroke="#ef4444" stroke-width="5"></circle>
+                    <circle cx="562" cy="313" r="8" fill="none" stroke="#ef4444" stroke-width="5"></circle>
+                    <path d="M425 308 h-45 M435 328 h-65" stroke="#2563eb" stroke-width="4" stroke-linecap="round"></path>
+                  </svg>
+                </article>
+                <article style="background:#fffdf7;border:1.5px solid #d9d2c2;border-radius:12px;padding:15px 17px;box-shadow:0 1px 2px rgba(26,37,64,.05)">
+                  <div style="display:flex;justify-content:space-between;font:700 10px 'Outfit',sans-serif;letter-spacing:1.3px;text-transform:uppercase;color:#8a8275"><span>Turn 3 · Guess</span><span>Priya</span></div>
+                  <p style="margin:7px 0 0;font:400 19px 'Paytone One',sans-serif">“Office roller derby”</p>
+                  <p style="margin:5px 0 0;font:500 12px 'Outfit',sans-serif;color:#d44e2a">↳ close enough to be funny, wrong enough to be art</p>
+                </article>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  </section>
+</x-dc>
+</body>
+</html>

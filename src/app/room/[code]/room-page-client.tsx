@@ -14,7 +14,6 @@ import {
   Image as ImageIcon,
   Link2,
   Loader2,
-  Palette,
   Play,
   RefreshCw,
   Send,
@@ -37,6 +36,14 @@ import { getStartGameGate } from "@/domain/start-game";
 import { TIMER_SECONDS, getTurnTimerState } from "@/domain/timer";
 import { getOrCreatePlayerToken } from "../../room-session";
 import { downloadRevealPdf } from "./pdf-export";
+
+const PLAYER_COLORS = [
+  "var(--app-accent)",
+  "var(--app-gold)",
+  "var(--app-teal)",
+  "var(--app-plum)",
+  "var(--app-green)",
+];
 
 type Lobby = NonNullable<ReturnType<typeof useQuery<typeof api.rooms.getLobby>>>;
 type ActiveTask = NonNullable<ReturnType<typeof useQuery<typeof api.rooms.getActiveTask>>>;
@@ -87,16 +94,20 @@ function RoomPageLive({ code }: { code: string }) {
   return (
     <main className="min-h-svh bg-[var(--app-background)] text-[var(--app-foreground)]">
       <div className="safe-page-bottom mx-auto flex min-h-svh w-full max-w-6xl flex-col px-4 py-5 sm:px-6 lg:px-8">
-        <header className="flex flex-col gap-3 border-b border-[var(--app-border)] pb-5 sm:flex-row sm:items-center sm:justify-between">
+        <header className="flex flex-col gap-3 border-b border-[var(--app-divider)] pb-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-medium text-[var(--app-muted)]">Room {code}</p>
-            <h1 className="text-2xl font-semibold">Telestrations</h1>
+            <p className="text-xs font-bold uppercase tracking-[0.13em] text-[var(--app-accent)]">
+              Room {code}
+            </p>
+            <h1 className="font-display text-2xl text-[var(--app-foreground)] sm:text-[28px]">
+              Telestrations
+            </h1>
           </div>
           <div className="flex flex-col gap-2 sm:items-end">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <RoomInviteControls code={code} />
               <Link
-                className="inline-flex h-11 w-full items-center justify-center rounded-md border border-[var(--app-border)] bg-white px-3 text-sm font-medium transition hover:bg-[var(--app-soft)] sm:h-10 sm:w-auto"
+                className="inline-flex h-11 w-full items-center justify-center rounded-[10px] border-[1.5px] border-[var(--app-border)] bg-white px-3 text-sm font-medium transition hover:bg-[var(--app-soft)] sm:h-10 sm:w-auto"
                 href="/"
               >
                 Back to app
@@ -174,11 +185,11 @@ function RoomInviteControls({ code }: { code: string }) {
 
   return (
     <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
-      <div className="inline-flex h-11 min-w-0 items-center gap-2 rounded-md border border-[var(--app-border)] bg-white px-3 text-sm text-[var(--app-muted)] shadow-sm sm:h-10">
+      <div className="inline-flex h-11 min-w-0 items-center gap-2 rounded-[10px] border-[1.5px] border-[var(--app-border)] bg-white px-3 text-sm font-medium text-[var(--app-muted)] shadow-sm sm:h-10">
         <Link2 className="shrink-0" size={16} />
         <span className="truncate">{sharePath}</span>
       </div>
-      <Button className="w-full sm:w-auto" onClick={handleCopyInvite}>
+      <Button className="w-full sm:w-auto" onClick={handleCopyInvite} variant="primary">
         <Copy size={16} />
         {copied ? "Copied" : "Copy invite link"}
       </Button>
@@ -208,7 +219,13 @@ function LobbyView({ compact = false, lobby }: { compact?: boolean; lobby: Lobby
             {lobby.room.playerCount}/{lobby.room.maxPlayers} players joined
           </p>
         </div>
-        <span className="w-fit rounded-md bg-[var(--app-soft)] px-2 py-1 text-xs text-[var(--app-muted)]">
+        <span
+          className={`w-fit rounded-full border-[1.5px] px-3 py-1 text-[10.5px] font-bold uppercase tracking-wider ${
+            lobby.room.status === "lobby"
+              ? "border-[var(--app-green-border)] bg-[var(--app-green-soft)] text-[var(--app-green)]"
+              : "border-[var(--app-cream-border)] bg-[var(--app-cream)] text-[var(--app-cream-text)]"
+          }`}
+        >
           {lobby.room.status}
         </span>
       </div>
@@ -216,21 +233,40 @@ function LobbyView({ compact = false, lobby }: { compact?: boolean; lobby: Lobby
       <div className={`${compact ? "mt-4" : "mt-5"} grid gap-2`}>
         {lobby.players.map((player) => (
           <div
-            className="flex min-h-12 items-center justify-between gap-3 rounded-md bg-[var(--app-soft)] px-3 py-2 text-sm sm:min-h-11 sm:py-0"
+            className={`flex min-h-12 items-center justify-between gap-3 rounded-[10px] px-3 py-2 text-sm sm:min-h-11 sm:py-0 ${
+              player.isCurrentPlayer
+                ? "border-[1.5px] border-[var(--app-cream-border)] bg-[var(--app-cream)]"
+                : "border-[1.5px] border-[var(--app-divider)] bg-white"
+            }`}
             key={player.id}
           >
             <div className="flex min-w-0 items-center gap-3">
-              <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white text-xs font-medium text-[var(--app-muted)]">
-                {player.order + 1}
-              </span>
+              <span
+                aria-hidden
+                className="mb-1 h-4 w-8 shrink-0 self-end rounded-t-full"
+                style={{ backgroundColor: PLAYER_COLORS[player.order % PLAYER_COLORS.length] }}
+              />
               <span className="truncate font-medium">{player.displayName}</span>
               {player.isCurrentPlayer ? (
-                <span className="shrink-0 text-xs text-[var(--app-muted)]">You</span>
+                <span className="shrink-0 text-[10.5px] font-bold uppercase tracking-wide text-[var(--app-faint)]">
+                  You
+                </span>
               ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-2 text-xs text-[var(--app-muted)]">
-              {player.isHost ? <Crown size={14} /> : <UserRound size={14} />}
-              <span>{player.isHost ? "Host" : player.status}</span>
+              {player.isHost ? (
+                <>
+                  <Crown className="text-[var(--app-gold)]" size={14} />
+                  <span className="text-[10.5px] font-bold uppercase tracking-wide text-[var(--app-cream-text)]">
+                    Host
+                  </span>
+                </>
+              ) : (
+                <>
+                  <UserRound size={14} />
+                  <span className="text-xs text-[var(--app-faint)]">{player.status}</span>
+                </>
+              )}
             </div>
           </div>
         ))}
@@ -273,10 +309,24 @@ function ActiveTaskSurface({
 
   return (
     <div className="flex min-h-full flex-col">
-      <div className="flex flex-col gap-3 border-b border-[var(--app-border)] p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-medium text-[var(--app-muted)]">Turn {taskView.currentTurn}</p>
-          <h2 className="text-xl font-semibold">{taskView.title}</h2>
+      <div className="flex flex-col gap-3 border-b border-[var(--app-divider)] p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3.5">
+          <span className="flex h-[54px] w-[54px] shrink-0 flex-col items-center justify-center rounded-xl border-[1.5px] border-[var(--app-cream-border)] bg-[var(--app-cream)]">
+            <span className="text-[8.5px] font-bold tracking-wide text-[var(--app-cream-text)]">
+              TURN
+            </span>
+            <span className="font-display text-xl leading-none text-[var(--app-foreground)]">
+              {taskView.currentTurn}
+            </span>
+          </span>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.13em] text-[var(--app-accent)]">
+              Turn {taskView.currentTurn}
+            </p>
+            <h2 className="font-display text-2xl text-[var(--app-foreground)] sm:text-[26px]">
+              {taskView.title}
+            </h2>
+          </div>
         </div>
         <div className="flex flex-col gap-2 sm:items-end">
           <TurnTimer deadlineAt={activeTask.room.activeDeadlineAt} />
@@ -285,11 +335,15 @@ function ActiveTaskSurface({
       </div>
 
       {taskView.state === "compose" ? (
-        <div className="grid flex-1 gap-4 p-4">
+        <div className="grid min-w-0 flex-1 content-start gap-4 p-4">
           {"previousEntry" in taskView && taskView.previousEntry ? (
             <PreviousEntry entry={taskView.previousEntry} />
           ) : taskView.entryType === "prompt" ? (
-            <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-soft)] px-3 py-2 text-sm text-[var(--app-muted)]">
+            <div className="flex items-center gap-2.5 rounded-[10px] border-[1.5px] border-[var(--app-cream-border)] bg-[var(--app-cream)] px-4 py-3 text-sm text-[var(--app-cream-text)]">
+              <span
+                aria-hidden
+                className="h-[11px] w-[22px] shrink-0 rounded-t-full bg-[var(--app-accent)]"
+              />
               Start a new chain with a short, work-safe prompt.
             </div>
           ) : null}
@@ -376,7 +430,9 @@ function TextTaskForm({
   return (
     <form className="grid gap-3" onSubmit={handleSubmit}>
       <label>
-        <span className="text-xs font-medium uppercase text-[var(--app-muted)]">{inputLabel}</span>
+        <span className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--app-muted)]">
+          {inputLabel}
+        </span>
         <TextInput
           className="mt-2"
           disabled={isSubmitting}
@@ -492,7 +548,7 @@ function DrawingTaskForm({
   }
 
   return (
-    <form className="grid gap-3" onSubmit={handleSubmit}>
+    <form className="grid min-w-0 gap-3" onSubmit={handleSubmit}>
       <DrawingBoard disabled={isSubmitting} onChange={handleDrawingChange} />
       {error ? <ErrorText message={error} /> : null}
       <Button
@@ -509,22 +565,16 @@ function DrawingTaskForm({
 }
 
 function PreviousEntry({ entry }: { entry: ActiveTaskPreviousEntry }) {
-  return (
-    <section className="border-b border-[var(--app-border)] bg-[var(--app-soft)] px-4 py-3 -mx-4 -mt-4">
-      <div className="flex items-center gap-2 text-xs font-medium uppercase text-[var(--app-muted)]">
-        {entry.kind === "drawing" ? (
+  if (entry.kind === "drawing") {
+    return (
+      <section className="border-b border-[var(--app-divider)] bg-[var(--app-panel)] px-4 py-3 -mx-4 -mt-4">
+        <div className="flex items-center gap-2 text-xs font-medium uppercase text-[var(--app-faint)]">
           <ImageIcon size={14} />
-        ) : entry.kind === "skipped" ? (
-          <SkipForward size={14} />
-        ) : (
-          <Palette size={14} />
-        )}
-        <span>
-          {entry.label} · Turn {entry.turn}
-        </span>
-      </div>
-      {entry.kind === "drawing" ? (
-        <div className="relative mt-3 aspect-[4/3] overflow-hidden rounded-md border border-[var(--app-border)] bg-[var(--paper)]">
+          <span>
+            {entry.label} · Turn {entry.turn}
+          </span>
+        </div>
+        <div className="relative mt-3 aspect-[4/3] overflow-hidden rounded-[10px] border-[1.5px] border-[var(--app-border)] bg-[var(--paper)]">
           <Image
             alt="Previous drawing"
             className="object-contain"
@@ -534,9 +584,26 @@ function PreviousEntry({ entry }: { entry: ActiveTaskPreviousEntry }) {
             unoptimized
           />
         </div>
-      ) : (
-        <p className="mt-2 text-lg font-medium leading-7">{entry.value}</p>
-      )}
+      </section>
+    );
+  }
+
+  return (
+    <section className="flex items-center gap-2.5 border-b border-[var(--app-cream-border)] bg-[var(--app-cream)] px-4 py-3 -mx-4 -mt-4">
+      <div className="w-full">
+        <div className="flex items-center gap-2">
+          <span
+            aria-hidden
+            className="h-[11px] w-[22px] shrink-0 rounded-t-full bg-[var(--app-gold)]"
+          />
+          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--app-cream-text)]">
+            {entry.label} · Turn {entry.turn}
+          </span>
+        </div>
+        <p className="mt-2 font-display text-lg leading-7 text-[var(--app-foreground)]">
+          {entry.value}
+        </p>
+      </div>
     </section>
   );
 }
@@ -580,11 +647,26 @@ function WaitingForTurn({
   return (
     <div className="grid gap-5 p-4 sm:p-6">
       <div className="flex flex-col gap-3 text-center sm:flex-row sm:items-center sm:text-left">
-        <span className="mx-auto inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-[var(--app-soft)] text-[var(--app-muted)] sm:mx-0">
-          <Clock3 size={22} />
+        <span className="mx-auto flex h-14 w-14 shrink-0 items-end justify-center rounded-[14px] border-[1.5px] border-[var(--app-cream-border)] bg-[var(--app-cream)] pb-2.5 sm:mx-0">
+          <span className="flex gap-1">
+            <span
+              className="h-2 w-2 rounded-full bg-[var(--app-accent)] animate-blinkdot"
+              style={{ animationDelay: "0s" }}
+            />
+            <span
+              className="h-2 w-2 rounded-full bg-[var(--app-gold)] animate-blinkdot"
+              style={{ animationDelay: "0.2s" }}
+            />
+            <span
+              className="h-2 w-2 rounded-full bg-[var(--app-teal)] animate-blinkdot"
+              style={{ animationDelay: "0.4s" }}
+            />
+          </span>
         </span>
         <div>
-          <h2 className="text-xl font-semibold">Waiting for the rest of the team</h2>
+          <h2 className="font-display text-2xl text-[var(--app-foreground)]">
+            Waiting for the rest of the team
+          </h2>
           <p className="mt-1 text-sm leading-6 text-[var(--app-muted)]">
             {round.pendingCount}{" "}
             {round.pendingCount === 1 ? "player still needs" : "players still need"} to submit.
@@ -599,15 +681,19 @@ function WaitingForTurn({
 
           return (
             <div
-              className="flex min-h-12 flex-col justify-between gap-3 rounded-md border border-[var(--app-border)] bg-white px-3 py-3 text-sm sm:flex-row sm:items-center"
+              className={`flex min-h-12 flex-col justify-between gap-3 rounded-[10px] border-[1.5px] px-3 py-3 text-sm sm:flex-row sm:items-center ${
+                isPending
+                  ? "border-[var(--app-cream-border)] bg-[var(--app-cream)]"
+                  : "border-[var(--app-divider)] bg-white"
+              }`}
               key={player.assignmentId}
             >
               <div className="flex min-w-0 items-center gap-3">
                 <span
-                  className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${
+                  className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
                     isPending
-                      ? "bg-[var(--app-soft)] text-[var(--app-muted)]"
-                      : "bg-[var(--app-foreground)] text-white"
+                      ? "border-[1.5px] border-[var(--app-cream-border)] bg-white text-[var(--app-cream-text)]"
+                      : "bg-[var(--app-green)] text-[var(--app-cream)]"
                   }`}
                 >
                   {isPending ? <Clock3 size={14} /> : <CheckCircle2 size={14} />}
@@ -619,7 +705,13 @@ function WaitingForTurn({
                       <span className="ml-2 text-xs font-normal text-[var(--app-muted)]">You</span>
                     ) : null}
                   </p>
-                  <p className="text-xs capitalize text-[var(--app-muted)]">
+                  <p
+                    className={
+                      isPending
+                        ? "text-xs capitalize text-[var(--app-muted)]"
+                        : "text-[10.5px] font-bold uppercase tracking-wide text-[var(--app-green)]"
+                    }
+                  >
                     {player.assignmentStatus}
                     {player.playerStatus !== "connected" ? ` · ${player.playerStatus}` : ""}
                     {player.isHost ? " · Host" : ""}
@@ -661,7 +753,7 @@ function WaitingForTurn({
 function InactiveTaskState({ title }: { title: string }) {
   return (
     <div className="flex min-h-72 flex-col items-center justify-center gap-4 p-6 text-center">
-      <span className="inline-flex h-12 w-12 items-center justify-center rounded-md bg-[var(--app-soft)] text-[var(--app-muted)]">
+      <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl border-[1.5px] border-[var(--app-cream-border)] bg-[var(--app-cream)] text-[var(--app-cream-text)]">
         <AlertCircle size={22} />
       </span>
       <h2 className="text-xl font-semibold">{title}</h2>
@@ -677,11 +769,15 @@ function TurnTimer({ deadlineAt }: { deadlineAt: number | undefined }) {
     return null;
   }
 
+  const isUrgent =
+    timerState.state === "expired" ||
+    (timerState.state === "running" && timerState.remainingSeconds <= 20);
+
   return (
     <div
-      className={`inline-flex h-10 items-center gap-2 rounded-md border px-3 text-sm font-medium ${
-        timerState.state === "expired"
-          ? "border-red-200 bg-red-50 text-red-700"
+      className={`inline-flex h-10 items-center gap-2 rounded-[10px] border-[1.5px] px-3 font-mono text-[15px] font-bold ${
+        isUrgent
+          ? "border-transparent bg-[var(--app-accent)] text-[var(--app-cream)]"
           : "border-[var(--app-border)] bg-white text-[var(--app-foreground)]"
       }`}
     >
@@ -693,10 +789,22 @@ function TurnTimer({ deadlineAt }: { deadlineAt: number | undefined }) {
 
 function RoundProgress({ round }: { round: ActiveTask["round"] }) {
   return (
-    <div className="grid grid-cols-3 overflow-hidden rounded-md border border-[var(--app-border)] bg-white text-center text-xs">
-      <RoundProgressCell label="Done" value={round.completedCount} />
-      <RoundProgressCell label="Pending" value={round.pendingCount} />
-      <RoundProgressCell label="Total" value={round.totalCount} />
+    <div className="grid grid-cols-3 overflow-hidden rounded-[10px] border-[1.5px] border-[var(--app-border)] bg-white text-center text-xs">
+      <RoundProgressCell
+        label="Done"
+        value={round.completedCount}
+        valueClassName="text-[var(--app-green)]"
+      />
+      <RoundProgressCell
+        label="Pending"
+        value={round.pendingCount}
+        valueClassName="text-[var(--app-accent)]"
+      />
+      <RoundProgressCell
+        label="Total"
+        value={round.totalCount}
+        valueClassName="text-[var(--app-foreground)]"
+      />
     </div>
   );
 }
@@ -744,10 +852,18 @@ function promptPackLabel(
   return options.find((option) => option.id === promptPackId)?.label ?? "Mixed";
 }
 
-function RoundProgressCell({ label, value }: { label: string; value: number }) {
+function RoundProgressCell({
+  label,
+  value,
+  valueClassName,
+}: {
+  label: string;
+  value: number;
+  valueClassName: string;
+}) {
   return (
-    <div className="min-w-16 border-r border-[var(--app-border)] px-3 py-2 last:border-r-0">
-      <div className="font-semibold text-[var(--app-foreground)]">{value}</div>
+    <div className="min-w-16 border-r border-[var(--app-divider)] px-3 py-2 last:border-r-0">
+      <div className={`font-semibold ${valueClassName}`}>{value}</div>
       <div className="text-[var(--app-muted)]">{label}</div>
     </div>
   );
@@ -800,10 +916,14 @@ function RevealSurface({ code, reveal }: { code: string; reveal: Reveal | null }
 
   return (
     <div className="flex min-h-full flex-col">
-      <div className="flex flex-col gap-3 border-b border-[var(--app-border)] p-4 xl:flex-row xl:items-center xl:justify-between">
+      <div className="flex flex-col gap-3 border-b border-[var(--app-divider)] p-4 xl:flex-row xl:items-center xl:justify-between">
         <div>
-          <p className="text-sm font-medium text-[var(--app-muted)]">Room {reveal.room.code}</p>
-          <h2 className="text-xl font-semibold">Final reveal</h2>
+          <p className="text-xs font-bold uppercase tracking-[0.13em] text-[var(--app-accent)]">
+            Room {reveal.room.code} · the big finish
+          </p>
+          <h2 className="font-display text-2xl text-[var(--app-foreground)] sm:text-[28px]">
+            Final reveal
+          </h2>
           {exportError ? <ErrorText message={exportError} /> : null}
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -829,6 +949,7 @@ function RevealSurface({ code, reveal }: { code: string; reveal: Reveal | null }
             aria-label="Next chain"
             disabled={!revealView.canGoNext}
             onClick={() => selectByOffset(1)}
+            variant="primary"
           >
             Next
             <ChevronRight size={16} />
@@ -840,10 +961,10 @@ function RevealSurface({ code, reveal }: { code: string; reveal: Reveal | null }
         <nav aria-label="Reveal chains" className="grid content-start gap-2">
           {revealView.overview.map((item) => (
             <button
-              className={`min-h-12 rounded-md border px-3 py-2 text-left text-sm transition focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)] ${
+              className={`min-h-12 rounded-[10px] border-[1.5px] px-3 py-2 text-left text-sm transition focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)] ${
                 item.isSelected
-                  ? "border-[var(--app-foreground)] bg-[var(--app-foreground)] text-white"
-                  : "border-[var(--app-border)] bg-white text-[var(--app-foreground)] hover:bg-[var(--app-soft)]"
+                  ? "border-transparent bg-[var(--app-ink)] text-[var(--app-cream)]"
+                  : "border-[var(--app-divider)] bg-white text-[var(--app-foreground)] hover:bg-[var(--app-soft)]"
               }`}
               key={item.id}
               onClick={() => setSelectedChainId(item.id)}
@@ -852,7 +973,7 @@ function RevealSurface({ code, reveal }: { code: string; reveal: Reveal | null }
               <span className="block font-medium">{item.label}</span>
               <span
                 className={`block truncate text-xs ${
-                  item.isSelected ? "text-white/75" : "text-[var(--app-muted)]"
+                  item.isSelected ? "text-[color:#a8b0c4]" : "text-[var(--app-muted)]"
                 }`}
               >
                 {item.ownerName}
@@ -865,7 +986,9 @@ function RevealSurface({ code, reveal }: { code: string; reveal: Reveal | null }
           <section className="min-w-0">
             <div className="flex flex-col gap-1 border-b border-[var(--app-border)] pb-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h3 className="text-lg font-semibold">{selectedChain.label}</h3>
+                <h3 className="font-display text-xl text-[var(--app-foreground)]">
+                  {selectedChain.label}
+                </h3>
                 <p className="text-sm text-[var(--app-muted)]">
                   Started by {selectedChain.ownerName}
                 </p>
@@ -891,8 +1014,8 @@ function RevealSurface({ code, reveal }: { code: string; reveal: Reveal | null }
 
 function RevealEntryCard({ entry }: { entry: RevealEntry }) {
   return (
-    <article className="rounded-md border border-[var(--app-border)] bg-white p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-medium uppercase text-[var(--app-muted)]">
+    <article className="rounded-xl border-[1.5px] border-[var(--app-border)] bg-[var(--app-panel)] p-4 shadow-[0_1px_2px_rgba(26,37,64,0.05)]">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-wider text-[var(--app-faint)]">
         <span>
           Turn {entry.turn} · {entry.type}
         </span>
@@ -900,10 +1023,12 @@ function RevealEntryCard({ entry }: { entry: RevealEntry }) {
       </div>
 
       {entry.type === "drawing" && "skipped" in entry ? (
-        <p className="mt-3 text-lg font-medium leading-7">{entry.text}</p>
+        <p className="mt-3 font-display text-lg leading-7 text-[var(--app-foreground)]">
+          {entry.text}
+        </p>
       ) : entry.type === "drawing" ? (
         entry.imageUrl ? (
-          <div className="relative mt-3 aspect-[4/3] overflow-hidden rounded-md border border-[var(--app-border)] bg-[var(--paper)]">
+          <div className="relative mt-3 aspect-[4/3] overflow-hidden rounded-[10px] border-[1.5px] border-[var(--app-border)] bg-[var(--paper)]">
             <Image
               alt={`Drawing from turn ${entry.turn}`}
               className="object-contain"
@@ -917,7 +1042,9 @@ function RevealEntryCard({ entry }: { entry: RevealEntry }) {
           <p className="mt-3 text-sm text-[var(--app-muted)]">Drawing image is unavailable.</p>
         )
       ) : (
-        <p className="mt-3 text-lg font-medium leading-7">{entry.text}</p>
+        <p className="mt-3 font-display text-lg leading-7 text-[var(--app-foreground)]">
+          {entry.text}
+        </p>
       )}
     </article>
   );
@@ -1105,14 +1232,18 @@ function PromptSettingsPanel({
 
   if (!isHost) {
     return (
-      <div className="grid gap-2 rounded-md bg-[var(--app-soft)] p-3 text-sm">
+      <div className="grid gap-2 rounded-xl border-[1.5px] border-[var(--app-border)] bg-[var(--app-panel)] p-3.5 text-sm">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-[var(--app-muted)]">Prompt source</span>
+          <span className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--app-cream-text)]">
+            Prompt source
+          </span>
           <span className="text-right font-medium">{promptModeLabel(promptMode)}</span>
         </div>
         {promptMode === "safe-pack" ? (
           <div className="flex items-center justify-between gap-3">
-            <span className="text-[var(--app-muted)]">Prompt theme</span>
+            <span className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--app-cream-text)]">
+              Prompt theme
+            </span>
             <span className="text-right font-medium">
               {promptPackLabel(promptPackOptions, promptPackId)}
             </span>
@@ -1123,7 +1254,7 @@ function PromptSettingsPanel({
   }
 
   return (
-    <div className="grid gap-3 rounded-md bg-[var(--app-soft)] p-3">
+    <div className="grid gap-3 rounded-xl border-[1.5px] border-[var(--app-border)] bg-[var(--app-panel)] p-3.5">
       <PromptModeSelect
         disabled={isSaving}
         onChange={(nextPromptMode) =>
@@ -1162,10 +1293,10 @@ function PromptModeSelect({
   value: "player-written" | "safe-pack";
 }) {
   return (
-    <label className="grid gap-1 text-xs font-medium uppercase text-[var(--app-muted)]">
+    <label className="grid gap-1 text-[10.5px] font-bold uppercase tracking-wider text-[var(--app-cream-text)]">
       Prompt source
       <select
-        className="h-10 rounded-md border border-[var(--app-border)] bg-white px-3 text-sm font-medium normal-case text-[var(--app-foreground)] focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)]"
+        className="h-10 rounded-[10px] border-[1.5px] border-[var(--app-border)] bg-white px-3 text-sm font-medium normal-case text-[var(--app-foreground)] focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)]"
         disabled={disabled}
         onChange={(event) =>
           onChange(event.target.value === "safe-pack" ? "safe-pack" : "player-written")
@@ -1191,10 +1322,10 @@ function PromptPackSelect({
   value: string;
 }) {
   return (
-    <label className="grid gap-1 text-xs font-medium uppercase text-[var(--app-muted)]">
+    <label className="grid gap-1 text-[10.5px] font-bold uppercase tracking-wider text-[var(--app-cream-text)]">
       Prompt theme
       <select
-        className="h-10 rounded-md border border-[var(--app-border)] bg-white px-3 text-sm font-medium normal-case text-[var(--app-foreground)] focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)]"
+        className="h-10 rounded-[10px] border-[1.5px] border-[var(--app-border)] bg-white px-3 text-sm font-medium normal-case text-[var(--app-foreground)] focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)]"
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
         value={value}
@@ -1248,13 +1379,17 @@ function TimerSettingsPanel({
 
   if (!isHost) {
     return (
-      <div className="grid gap-2 rounded-md bg-[var(--app-soft)] p-3 text-sm">
+      <div className="grid gap-2 rounded-xl border-[1.5px] border-[var(--app-border)] bg-[var(--app-panel)] p-3.5 text-sm">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-[var(--app-muted)]">Drawing timer</span>
+          <span className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--app-teal)]">
+            Drawing timer
+          </span>
           <span className="font-medium">{timerOptionLabel(drawingSeconds)}</span>
         </div>
         <div className="flex items-center justify-between gap-3">
-          <span className="text-[var(--app-muted)]">Guess timer</span>
+          <span className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--app-teal)]">
+            Guess timer
+          </span>
           <span className="font-medium">{timerOptionLabel(guessingSeconds)}</span>
         </div>
       </div>
@@ -1262,7 +1397,7 @@ function TimerSettingsPanel({
   }
 
   return (
-    <div className="grid gap-3 rounded-md bg-[var(--app-soft)] p-3">
+    <div className="grid gap-3 rounded-xl border-[1.5px] border-[var(--app-border)] bg-[var(--app-panel)] p-3.5">
       <div className="grid gap-2 sm:grid-cols-2">
         <TimerSelect
           disabled={isSaving}
@@ -1294,10 +1429,10 @@ function TimerSelect({
   value: number;
 }) {
   return (
-    <label className="grid gap-1 text-xs font-medium uppercase text-[var(--app-muted)]">
+    <label className="grid gap-1 text-[10.5px] font-bold uppercase tracking-wider text-[var(--app-teal)]">
       {label}
       <select
-        className="h-10 rounded-md border border-[var(--app-border)] bg-white px-3 text-sm font-medium normal-case text-[var(--app-foreground)] focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)]"
+        className="h-10 rounded-[10px] border-[1.5px] border-[var(--app-border)] bg-white px-3 text-sm font-medium normal-case text-[var(--app-foreground)] focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)]"
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
         value={value}
@@ -1324,7 +1459,7 @@ function LoadingRoom() {
 function MissingRoom({ code }: { code: string }) {
   return (
     <div>
-      <h2 className="text-xl font-semibold">Room not found</h2>
+      <h2 className="font-display text-xl text-[var(--app-foreground)]">Room not found</h2>
       <p className="mt-1 text-sm text-[var(--app-muted)]">
         Room {code} is missing, archived, or using a different deployment.
       </p>
@@ -1336,9 +1471,13 @@ function RoomUnavailable({ code }: { code: string }) {
   return (
     <main className="min-h-svh bg-[var(--app-background)] text-[var(--app-foreground)]">
       <div className="safe-page-bottom mx-auto flex min-h-svh w-full max-w-3xl flex-col px-4 py-5 sm:px-6 lg:px-8">
-        <header className="border-b border-[var(--app-border)] pb-5">
-          <p className="text-sm font-medium text-[var(--app-muted)]">Room {code}</p>
-          <h1 className="text-2xl font-semibold">Telestrations</h1>
+        <header className="border-b border-[var(--app-divider)] pb-5">
+          <p className="text-xs font-bold uppercase tracking-[0.13em] text-[var(--app-accent)]">
+            Room {code}
+          </p>
+          <h1 className="font-display text-2xl text-[var(--app-foreground)] sm:text-[28px]">
+            Telestrations
+          </h1>
         </header>
         <Panel className="mt-5 p-4">
           <h2 className="text-xl font-semibold">Live rooms are unavailable</h2>
@@ -1346,7 +1485,7 @@ function RoomUnavailable({ code }: { code: string }) {
             Convex is not configured for this environment.
           </p>
           <Link
-            className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-md border border-[var(--app-border)] bg-white px-3 text-sm font-medium transition hover:bg-[var(--app-soft)] sm:h-10 sm:w-auto"
+            className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-[10px] border-[1.5px] border-[var(--app-border)] bg-white px-3 text-sm font-medium transition hover:bg-[var(--app-soft)] sm:h-10 sm:w-auto"
             href="/"
           >
             Back to app

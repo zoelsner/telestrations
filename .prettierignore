@@ -10,3 +10,4 @@ playwright-report
 public/*.svg
 test-results
 tsconfig.tsbuildinfo
+docs/design/telestrations-final.dc.html

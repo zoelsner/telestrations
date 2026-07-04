@@ -1,6 +1,18 @@
 import type { Metadata } from "next";
+import { Outfit, Paytone_One } from "next/font/google";
 import { ConvexClientProvider } from "./convex-client-provider";
 import "./globals.css";
+
+const outfit = Outfit({
+  subsets: ["latin"],
+  variable: "--font-outfit",
+});
+
+const paytoneOne = Paytone_One({
+  subsets: ["latin"],
+  variable: "--font-paytone",
+  weight: "400",
+});
 
 export const metadata: Metadata = {
   title: "Telestrations",
@@ -13,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased">
+    <html className={`h-full antialiased ${outfit.variable} ${paytoneOne.variable}`} lang="en">
       <body className="flex min-h-full flex-col">
         <ConvexClientProvider>{children}</ConvexClientProvider>
       </body>
