@@ -40,6 +40,7 @@ import { DrawingBoard, type DrawingBoardValue } from "@/components/drawing-board
 import { Button, IconButton, Panel, TextInput } from "@/components/ui";
 import { buildActiveTaskView, type ActiveTaskPreviousEntry } from "@/domain/active-task";
 import { CANVAS_SIZE, DRAWING_BACKGROUND_COLOR } from "@/domain/drawing";
+import { HEARTBEAT_INTERVAL_MS, isPlayerDisconnected } from "@/domain/presence";
 import { buildRevealView } from "@/domain/reveal";
 import { normalizeRoomCode, validateDisplayName } from "@/domain/room-join";
 import { getStartGameGate } from "@/domain/start-game";
@@ -106,6 +107,14 @@ function RoomPageLive({ code }: { code: string }) {
     lobby.currentPlayer !== null &&
     (lobby.room.status === "reveal" || lobby.room.status === "archived");
   const focusRoom = showActiveTask || showReveal;
+  const heartbeatEnabled =
+    lobby !== undefined &&
+    lobby !== null &&
+    lobby.currentPlayer != null &&
+    (lobby.room.status === "setup" ||
+      lobby.room.status === "lobby" ||
+      lobby.room.status === "active");
+  usePresenceHeartbeat({ code, playerToken, enabled: heartbeatEnabled });
 
   return (
     <main className="min-h-svh bg-[var(--app-background)] text-[var(--app-foreground)]">
@@ -181,6 +190,8 @@ function RoomPageLive({ code }: { code: string }) {
                   <PlayerStatus code={code} lobby={lobby} playerToken={playerToken} />
                 ) : isClaiming ? (
                   <LoadingRoom />
+                ) : lobby.room.status === "active" ? (
+                  <ReclaimSeatPanel code={code} lobby={lobby} playerToken={playerToken} />
                 ) : (
                   <JoinRoomForm code={code} playerToken={playerToken} />
                 )}
@@ -223,6 +234,44 @@ function usePlayerToken(code: string) {
     () => getOrCreatePlayerToken(code),
     () => null,
   );
+}
+
+function usePresenceHeartbeat({
+  code,
+  enabled,
+  playerToken,
+}: {
+  code: string;
+  enabled: boolean;
+  playerToken: string | null;
+}) {
+  const heartbeat = useMutation(api.rooms.heartbeat);
+
+  useEffect(() => {
+    if (!enabled || playerToken === null) {
+      return;
+    }
+
+    const sendHeartbeat = () => {
+      heartbeat({ code, playerToken }).catch(() => {});
+    };
+
+    sendHeartbeat();
+    const intervalId = window.setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        sendHeartbeat();
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [code, enabled, heartbeat, playerToken]);
 }
 
 function emptySubscribe() {
@@ -1294,6 +1343,84 @@ function JoinRoomForm({ code, playerToken }: { code: string; playerToken: string
         Join
       </Button>
     </form>
+  );
+}
+
+function ReclaimSeatPanel({
+  code,
+  lobby,
+  playerToken,
+}: {
+  code: string;
+  lobby: Lobby;
+  playerToken: string;
+}) {
+  const now = useNow(1_000);
+  const reclaimSeat = useMutation(api.rooms.reclaimSeat);
+  const [pendingId, setPendingId] = useState<Id<"players"> | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const claimable = lobby.players.filter(
+    (player) =>
+      player.status !== "removed" &&
+      !player.isHost &&
+      isPlayerDisconnected({ lastSeenAt: player.lastSeenAt, now }),
+  );
+
+  async function handleReclaim(player: Lobby["players"][number]) {
+    if (pendingId !== null) {
+      return;
+    }
+
+    setError(null);
+    setPendingId(player.id);
+
+    try {
+      await reclaimSeat({ code, playerToken, targetPlayerId: player.id });
+    } catch (caughtError) {
+      setError(errorMessage(caughtError, "Could not reclaim that seat."));
+      setPendingId(null);
+    }
+  }
+
+  return (
+    <div className="grid gap-3">
+      <div>
+        <h2 className="text-sm font-semibold">Were you already playing?</h2>
+        <p className="mt-1 text-sm text-[var(--app-muted)]">
+          Pick your seat to jump back into the game.
+        </p>
+      </div>
+      {claimable.length === 0 ? (
+        <p className="text-sm text-[var(--app-muted)]">
+          No seats are open to reclaim right now. If your seat still shows as active, give it a few
+          seconds — or ask the host for a rejoin link.
+        </p>
+      ) : (
+        <div className="grid gap-2">
+          {claimable.map((player) => {
+            const isPending = pendingId === player.id;
+
+            return (
+              <Button
+                aria-label={`Reclaim ${player.displayName}'s seat`}
+                className="w-full"
+                disabled={pendingId !== null}
+                key={player.id}
+                onClick={() => handleReclaim(player)}
+              >
+                {isPending ? (
+                  <Loader2 className="animate-spin" size={16} />
+                ) : (
+                  <DoorOpen size={16} />
+                )}
+                {player.displayName}
+              </Button>
+            );
+          })}
+        </div>
+      )}
+      {error ? <ErrorText message={error} /> : null}
+    </div>
   );
 }
 
