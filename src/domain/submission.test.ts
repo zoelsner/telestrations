@@ -227,7 +227,6 @@ describe("validateDrawingBlob", () => {
     expect(validateDrawingBlob(null)).toEqual({
       ok: false,
       reason: "Drawing upload is missing.",
-      deleteBlob: false,
     });
   });
 
@@ -240,7 +239,6 @@ describe("validateDrawingBlob", () => {
     ).toEqual({
       ok: false,
       reason: "Drawing image is too large.",
-      deleteBlob: true,
     });
   });
 
@@ -253,7 +251,6 @@ describe("validateDrawingBlob", () => {
     ).toEqual({
       ok: false,
       reason: "Drawing image is invalid.",
-      deleteBlob: true,
     });
   });
 
@@ -265,7 +262,6 @@ describe("validateDrawingBlob", () => {
     ).toEqual({
       ok: false,
       reason: "Drawing image is invalid.",
-      deleteBlob: true,
     });
   });
 

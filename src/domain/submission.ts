@@ -255,17 +255,17 @@ export type DrawingBlobMetadata = { size: number; contentType?: string };
 
 export function validateDrawingBlob(
   blob: DrawingBlobMetadata | null,
-): { ok: true } | { ok: false; reason: string; deleteBlob: boolean } {
+): { ok: true } | { ok: false; reason: string } {
   if (blob === null) {
-    return { ok: false, reason: "Drawing upload is missing.", deleteBlob: false };
+    return { ok: false, reason: "Drawing upload is missing." };
   }
 
   if (blob.size > MAX_DRAWING_ARTIFACT_BYTES) {
-    return { ok: false, reason: "Drawing image is too large.", deleteBlob: true };
+    return { ok: false, reason: "Drawing image is too large." };
   }
 
   if (blob.contentType !== "image/png") {
-    return { ok: false, reason: "Drawing image is invalid.", deleteBlob: true };
+    return { ok: false, reason: "Drawing image is invalid." };
   }
 
   return { ok: true };

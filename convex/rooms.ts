@@ -1327,10 +1327,8 @@ export const submitEntry = mutation({
       );
 
       if (!blobResult.ok) {
-        if (blobResult.deleteBlob) {
-          await ctx.storage.delete(storageId);
-        }
-
+        // Deleting the blob here would be undone by this mutation's own transaction
+        // rollback when we throw; the hourly orphan sweep collects rejected blobs.
         throw roomError("invalid_submission_payload", blobResult.reason);
       }
     }
