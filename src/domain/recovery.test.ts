@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getSkipAssignmentGate } from "./recovery";
+import { TURN_EXPIRY_GRACE_MS, getSkipAssignmentGate, getTurnExpirySweep } from "./recovery";
 
 describe("recovery domain rules", () => {
   const base = {
@@ -76,6 +76,75 @@ describe("recovery domain rules", () => {
     ).toMatchObject({
       code: "stale_assignment",
       ok: false,
+    });
+  });
+});
+
+describe("getTurnExpirySweep", () => {
+  const deadlineAt = 10_000;
+  const base = {
+    assignments: [
+      { id: "a-1", status: "pending" as const },
+      { id: "a-2", status: "submitted" as const },
+    ],
+    deadlineAt,
+    now: deadlineAt + TURN_EXPIRY_GRACE_MS + 1,
+    roomStatus: "active" as const,
+  };
+
+  it("expires only the pending assignments once past the deadline plus grace", () => {
+    expect(getTurnExpirySweep(base)).toEqual({
+      expiringAssignmentIds: ["a-1"],
+      shouldExpire: true,
+    });
+  });
+
+  it("expires at exactly the deadline plus grace boundary", () => {
+    expect(getTurnExpirySweep({ ...base, now: deadlineAt + TURN_EXPIRY_GRACE_MS })).toEqual({
+      expiringAssignmentIds: ["a-1"],
+      shouldExpire: true,
+    });
+  });
+
+  it("does not expire before the grace period has passed", () => {
+    expect(getTurnExpirySweep({ ...base, now: deadlineAt + TURN_EXPIRY_GRACE_MS - 1 })).toEqual({
+      shouldExpire: false,
+    });
+  });
+
+  it("does not expire a timer-off turn", () => {
+    expect(getTurnExpirySweep({ ...base, deadlineAt: undefined })).toEqual({
+      shouldExpire: false,
+    });
+  });
+
+  it("does not expire when no assignments are still pending", () => {
+    expect(
+      getTurnExpirySweep({
+        ...base,
+        assignments: [
+          { id: "a-1", status: "submitted" as const },
+          { id: "a-2", status: "skipped" as const },
+          { id: "a-3", status: "expired" as const },
+        ],
+      }),
+    ).toEqual({ shouldExpire: false });
+  });
+
+  it("does not expire when the room is not active", () => {
+    expect(getTurnExpirySweep({ ...base, roomStatus: "reveal" })).toEqual({
+      shouldExpire: false,
+    });
+  });
+
+  it("honors a custom grace period", () => {
+    const graceMs = 5_000;
+    expect(getTurnExpirySweep({ ...base, graceMs, now: deadlineAt + graceMs })).toEqual({
+      expiringAssignmentIds: ["a-1"],
+      shouldExpire: true,
+    });
+    expect(getTurnExpirySweep({ ...base, graceMs, now: deadlineAt + graceMs - 1 })).toEqual({
+      shouldExpire: false,
     });
   });
 });

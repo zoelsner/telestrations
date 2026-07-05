@@ -62,3 +62,55 @@ function recoveryError(
 ): SkipAssignmentGate {
   return { code, message, ok: false };
 }
+
+/**
+ * Grace period after a turn's deadline before pending assignments are auto-expired.
+ * Keeps a briefly-late submission or a manual host skip from racing the sweep.
+ */
+export const TURN_EXPIRY_GRACE_MS = 30_000;
+
+export type TurnExpiryAssignment = {
+  id: string;
+  status: RecoveryAssignmentStatus;
+};
+
+export type TurnExpirySweepInput = {
+  assignments: TurnExpiryAssignment[];
+  deadlineAt: number | undefined;
+  graceMs?: number;
+  now: number;
+  roomStatus: RecoveryRoomStatus;
+};
+
+export type TurnExpirySweep =
+  | { shouldExpire: false }
+  | { expiringAssignmentIds: string[]; shouldExpire: true };
+
+/**
+ * Decides whether a turn is stalled past its deadline plus grace and, if so, which
+ * pending assignments should be marked "expired" to unblock the room. Pure: the
+ * caller re-reads live state inside the mutation before acting on the result.
+ */
+export function getTurnExpirySweep(input: TurnExpirySweepInput): TurnExpirySweep {
+  const graceMs = input.graceMs ?? TURN_EXPIRY_GRACE_MS;
+
+  // Only active rooms with a running timer can stall. Timer-off rooms
+  // (deadlineAt === undefined) are intentionally left untouched.
+  if (input.roomStatus !== "active" || input.deadlineAt === undefined) {
+    return { shouldExpire: false };
+  }
+
+  if (input.now < input.deadlineAt + graceMs) {
+    return { shouldExpire: false };
+  }
+
+  const expiringAssignmentIds = input.assignments
+    .filter((assignment) => assignment.status === "pending")
+    .map((assignment) => assignment.id);
+
+  if (expiringAssignmentIds.length === 0) {
+    return { shouldExpire: false };
+  }
+
+  return { expiringAssignmentIds, shouldExpire: true };
+}

@@ -1,8 +1,9 @@
 import { ConvexError, v } from "convex/values";
 
+import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { MAX_PLAYERS_PER_ROOM } from "../src/domain/game-state";
 import {
   buildTurnAssignments,
@@ -16,7 +17,11 @@ import {
   validatePromptPackId,
   type PromptPackId,
 } from "../src/domain/prompt-packs";
-import { getSkipAssignmentGate } from "../src/domain/recovery";
+import {
+  TURN_EXPIRY_GRACE_MS,
+  getSkipAssignmentGate,
+  getTurnExpirySweep,
+} from "../src/domain/recovery";
 import {
   generateRoomCode,
   validateDisplayName,
@@ -1202,6 +1207,98 @@ export const skipAssignment = mutation({
   },
 });
 
+export const sweepExpiredTurns = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const now = Date.now();
+    const activeRooms = await ctx.db
+      .query("rooms")
+      .withIndex("by_status", (q) => q.eq("status", "active"))
+      .collect();
+
+    for (const room of activeRooms) {
+      if (
+        room.activeDeadlineAt !== undefined &&
+        now >= room.activeDeadlineAt + TURN_EXPIRY_GRACE_MS
+      ) {
+        await ctx.scheduler.runAfter(0, internal.rooms.expireRoomTurn, {
+          roomId: room._id,
+        });
+      }
+    }
+
+    return null;
+  },
+});
+
+export const expireRoomTurn = internalMutation({
+  args: {
+    roomId: v.id("rooms"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const room = await ctx.db.get(args.roomId);
+
+    if (!room) {
+      return null;
+    }
+
+    const currentAssignments = await getAssignmentsByRoomTurn(ctx, room._id, room.currentTurn);
+    const sweep = getTurnExpirySweep({
+      assignments: currentAssignments.map((assignment) => ({
+        id: assignment._id,
+        status: assignment.status,
+      })),
+      deadlineAt: room.activeDeadlineAt,
+      now,
+      roomStatus: room.status,
+    });
+
+    if (!sweep.shouldExpire) {
+      return null;
+    }
+
+    const expiringIds = new Set(sweep.expiringAssignmentIds);
+
+    for (const assignment of currentAssignments) {
+      if (!expiringIds.has(assignment._id)) {
+        continue;
+      }
+
+      const entryId = await ctx.db.insert("entries", {
+        roomId: room._id,
+        chainId: assignment.chainId,
+        authorPlayerId: assignment.playerId,
+        turn: assignment.turn,
+        type: assignment.entryType,
+        payload: expiredEntryPayload(assignment.entryType),
+        createdAt: now,
+        submittedAt: now,
+      });
+
+      await ctx.db.patch(assignment._id, {
+        status: "expired",
+        submittedEntryId: entryId,
+        expiredAt: now,
+      });
+
+      await ctx.db.patch(assignment.chainId, {
+        currentEntryId: entryId,
+        updatedAt: now,
+      });
+    }
+
+    await ctx.db.patch(room._id, {
+      updatedAt: now,
+    });
+    await advanceRoomAfterTurnIfReady(ctx, room, now);
+
+    return null;
+  },
+});
+
 async function advanceRoomAfterTurnIfReady(
   ctx: MutationCtx,
   room: Doc<"rooms">,
@@ -1549,6 +1646,21 @@ function skippedEntryPayload(entryType: "prompt" | "drawing" | "guess") {
 
   return {
     text: `${entryType === "prompt" ? "Prompt" : "Guess"} skipped by host`,
+    type: entryType,
+  } as const;
+}
+
+function expiredEntryPayload(entryType: "prompt" | "drawing" | "guess") {
+  if (entryType === "drawing") {
+    return {
+      reason: "Drawing timed out",
+      skipped: true,
+      type: "drawing",
+    } as const;
+  }
+
+  return {
+    text: `${entryType === "prompt" ? "Prompt" : "Guess"} timed out`,
     type: entryType,
   } as const;
 }
