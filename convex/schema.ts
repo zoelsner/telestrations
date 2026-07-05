@@ -183,4 +183,10 @@ export default defineSchema({
     .index("by_player_turn", ["playerId", "turn"])
     .index("by_player_status", ["playerId", "status"])
     .index("by_chain_turn", ["chainId", "turn"]),
+
+  rateLimits: defineTable({
+    key: v.string(),
+    windowStartMs: v.number(),
+    count: v.number(),
+  }).index("by_key", ["key"]),
 });
