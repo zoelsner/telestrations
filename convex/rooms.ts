@@ -6,6 +6,13 @@ import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { MAX_PLAYERS_PER_ROOM } from "../src/domain/game-state";
 import { getRoomLifecycleAction } from "../src/domain/lifecycle";
+import { ORPHAN_UPLOAD_MIN_AGE_MS, selectOrphanStorageIds } from "../src/domain/orphan-uploads";
+import {
+  CREATE_ROOM_GLOBAL_KEY,
+  RATE_LIMITS,
+  RATE_LIMIT_ROW_TTL_MS,
+  evaluateRateLimit,
+} from "../src/domain/rate-limit";
 import {
   buildTurnAssignments,
   isTurnComplete,
@@ -349,6 +356,42 @@ type RoomLookupCtx = {
   db: QueryCtx["db"] | MutationCtx["db"];
 };
 
+/**
+ * Fixed-window rate limit gate, backed by the `rateLimits` table. `key` is either
+ * the shared global-bucket key (e.g. createRoom) or a per-token key (`${bucket}:
+ * ${tokenHash}`) for buckets scoped to a stable token. Throws `rate_limited` when
+ * the bucket's budget for the current window is exhausted.
+ */
+async function enforceRateLimit(ctx: MutationCtx, bucket: keyof typeof RATE_LIMITS, key: string) {
+  const now = Date.now();
+  const row = await ctx.db
+    .query("rateLimits")
+    .withIndex("by_key", (q) => q.eq("key", key))
+    .unique();
+  const { limit, windowMs } = RATE_LIMITS[bucket];
+  const decision = evaluateRateLimit({
+    now,
+    limit,
+    windowMs,
+    state: row ? { windowStartMs: row.windowStartMs, count: row.count } : null,
+  });
+
+  if (!decision.allowed) {
+    throw roomError(
+      "rate_limited",
+      bucket === "createRoom"
+        ? "Room creation is busy right now. Please try again in a minute."
+        : "You're doing that too fast. Please wait a moment and try again.",
+    );
+  }
+
+  if (row) {
+    await ctx.db.patch(row._id, decision.next);
+  } else {
+    await ctx.db.insert("rateLimits", { key, ...decision.next });
+  }
+}
+
 export const createRoom = mutation({
   args: {
     hostName: v.string(),
@@ -358,6 +401,7 @@ export const createRoom = mutation({
   handler: async (ctx, args) => {
     const hostName = requireValidDisplayName(args.hostName);
     const tokenHash = await requireValidTokenHash(args.playerToken);
+    await enforceRateLimit(ctx, "createRoom", CREATE_ROOM_GLOBAL_KEY);
     const now = Date.now();
     const code = await createUniqueRoomCode(ctx);
 
@@ -417,6 +461,7 @@ export const joinRoom = mutation({
     const code = requireValidRoomCode(args.code);
     const displayName = requireValidDisplayName(args.displayName);
     const tokenHash = await requireValidTokenHash(args.playerToken);
+    await enforceRateLimit(ctx, "joinRoom", `joinRoom:${tokenHash}`);
     const now = Date.now();
     const room = await getRoomByCode(ctx, code);
 
@@ -1178,6 +1223,7 @@ export const generateDrawingUploadUrl = mutation({
   handler: async (ctx, args) => {
     const code = requireValidRoomCode(args.code);
     const tokenHash = await requireValidTokenHash(args.playerToken);
+    await enforceRateLimit(ctx, "drawingUploadUrl", `drawingUploadUrl:${tokenHash}`);
     const room = await getRoomByCode(ctx, code);
 
     if (!room) {
@@ -1655,6 +1701,68 @@ export const purgeRoom = internalMutation({
   },
 });
 
+// Upper bound on blob deletions and rate-limit row prunes per sweep so a large
+// backlog is drained across several hourly runs instead of one heavy transaction.
+const MAX_ORPHAN_DELETIONS_PER_SWEEP = 50;
+
+/**
+ * Hourly reconciliation sweep: `generateDrawingUploadUrl` mints an upload URL, but
+ * the storageId only exists once the client POSTs the drawing, so an abandoned or
+ * failed upload leaves an unreferenced `_storage` blob that no other path ever
+ * revisits. This scans all drawing entries to build the complete referenced set
+ * (a partial scan could wrongly delete a referenced blob, so it cannot be
+ * bounded), then deletes old, unreferenced blobs. In the same transaction, prunes
+ * stale `rateLimits` rows (Part 1) past their TTL so that table doesn't grow
+ * forever alongside `tokenHash` churn.
+ */
+export const sweepOrphanedUploads = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const now = Date.now();
+
+    // Complete referenced set — MUST be complete or we could delete a referenced blob.
+    const entries = await ctx.db.query("entries").collect();
+    const referenced = new Set<Id<"_storage">>();
+
+    for (const entry of entries) {
+      if ("drawing" in entry.payload) {
+        referenced.add(entry.payload.drawing.artifact.storageId);
+      }
+    }
+
+    const blobs = await ctx.db.system.query("_storage").collect();
+    const toDelete = selectOrphanStorageIds({
+      now,
+      minAgeMs: ORPHAN_UPLOAD_MIN_AGE_MS,
+      maxDeletions: MAX_ORPHAN_DELETIONS_PER_SWEEP,
+      blobs: blobs.map((blob) => ({ storageId: blob._id, creationTime: blob._creationTime })),
+      referencedStorageIds: referenced,
+    });
+
+    for (const storageId of toDelete) {
+      await ctx.storage.delete(storageId);
+    }
+
+    // Prune stale rate-limit rows (Part 1) in the same sweep.
+    const rateLimitRows = await ctx.db.query("rateLimits").collect();
+    let pruned = 0;
+
+    for (const row of rateLimitRows) {
+      if (pruned >= MAX_ORPHAN_DELETIONS_PER_SWEEP) {
+        break;
+      }
+
+      if (row.windowStartMs < now - RATE_LIMIT_ROW_TTL_MS) {
+        await ctx.db.delete(row._id);
+        pruned += 1;
+      }
+    }
+
+    return null;
+  },
+});
+
 async function advanceRoomAfterTurnIfReady(
   ctx: MutationCtx,
   room: Doc<"rooms">,
@@ -1918,58 +2026,63 @@ async function getRevealChains(
   playersById: Map<Doc<"players">["_id"], Doc<"players">>,
 ) {
   const chains = await getChainsByRoom(ctx, roomId);
-  const revealChains = [];
 
-  for (const chain of chains) {
-    const entries = await ctx.db
-      .query("entries")
-      .withIndex("by_chain_turn", (q) => q.eq("chainId", chain._id))
-      .collect();
-    const revealEntries = [];
+  // Resolved via Promise.all: getUrl is a read-only, idempotent storage lookup
+  // with no ordering dependency (the final sorts below run after resolution), so
+  // overlapping the async I/O across chains and entries is a pure perf win with
+  // identical output to the equivalent sequential loops.
+  const revealChains = await Promise.all(
+    chains.map(async (chain) => {
+      const entries = await ctx.db
+        .query("entries")
+        .withIndex("by_chain_turn", (q) => q.eq("chainId", chain._id))
+        .collect();
 
-    for (const entry of entries) {
-      const authorName = playerName(playersById, entry.authorPlayerId);
+      const revealEntries = await Promise.all(
+        entries.map(async (entry) => {
+          const authorName = playerName(playersById, entry.authorPlayerId);
 
-      if (entry.payload.type === "drawing") {
-        if ("skipped" in entry.payload) {
-          revealEntries.push({
+          if (entry.payload.type === "drawing") {
+            if ("skipped" in entry.payload) {
+              return {
+                authorName,
+                id: entry._id,
+                skipped: true as const,
+                text: entry.payload.reason,
+                turn: entry.turn,
+                type: "drawing" as const,
+              };
+            }
+
+            const imageUrl = await ctx.storage.getUrl(entry.payload.drawing.artifact.storageId);
+
+            return {
+              authorName,
+              id: entry._id,
+              ...(imageUrl === null ? {} : { imageUrl }),
+              turn: entry.turn,
+              type: "drawing" as const,
+            };
+          }
+
+          return {
             authorName,
             id: entry._id,
-            skipped: true as const,
-            text: entry.payload.reason,
+            text: entry.payload.text,
             turn: entry.turn,
-            type: "drawing" as const,
-          });
-          continue;
-        }
+            type: entry.payload.type,
+          };
+        }),
+      );
 
-        const imageUrl = await ctx.storage.getUrl(entry.payload.drawing.artifact.storageId);
-
-        revealEntries.push({
-          authorName,
-          id: entry._id,
-          ...(imageUrl === null ? {} : { imageUrl }),
-          turn: entry.turn,
-          type: "drawing" as const,
-        });
-      } else {
-        revealEntries.push({
-          authorName,
-          id: entry._id,
-          text: entry.payload.text,
-          turn: entry.turn,
-          type: entry.payload.type,
-        });
-      }
-    }
-
-    revealChains.push({
-      entries: revealEntries.sort((left, right) => left.turn - right.turn),
-      id: chain._id,
-      order: chain.order,
-      ownerName: playerName(playersById, chain.ownerPlayerId),
-    });
-  }
+      return {
+        entries: revealEntries.sort((left, right) => left.turn - right.turn),
+        id: chain._id,
+        order: chain.order,
+        ownerName: playerName(playersById, chain.ownerPlayerId),
+      };
+    }),
+  );
 
   return revealChains.sort((left, right) => left.order - right.order);
 }
