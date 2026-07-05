@@ -1,22 +1,18 @@
 import type { AssignmentStatus, EntryType, RoomStatus } from "./game-state";
 import { DRAWING_PAYLOAD_VERSION } from "./game-state";
-import {
-  BRUSH_SIZES,
-  CANVAS_SIZE,
-  DRAWING_BACKGROUND_COLOR,
-  DRAWING_COLORS,
-  type DrawingPoint,
-  type DrawingStroke,
-} from "./drawing";
+import { CANVAS_SIZE, DRAWING_BACKGROUND_COLOR } from "./drawing";
 
 export const MAX_PROMPT_LENGTH = 160;
 export const MAX_GUESS_LENGTH = 120;
-export const MAX_DRAWING_STROKES = 512;
-export const MAX_POINTS_PER_STROKE = 4096;
+
+// Hard ceiling on the declared PNG artifact size. A 960x720 canvas exported as PNG cannot
+// exceed ~2.8 MB even for incompressible noise (raw RGBA is 960*720*4 = 2.76 MB and PNG
+// adds only small overhead). 4 MiB leaves headroom so no legitimate export is ever
+// rejected, while any larger declared size is a bug or abuse. Note: this bounds the
+// CLIENT-DECLARED byteSize only; actual-blob enforcement is deferred (see design doc).
+export const MAX_DRAWING_ARTIFACT_BYTES = 4 * 1024 * 1024;
 
 const controlCharacterPattern = /[\u0000-\u001F\u007F]/;
-const allowedDrawingColors: readonly string[] = DRAWING_COLORS;
-const allowedBrushSizes: readonly number[] = BRUSH_SIZES;
 
 export type TextSubmissionPayload = {
   text: string;
@@ -39,7 +35,6 @@ export type DrawingSubmission<TStorageId extends string = string> = {
     height: number;
     width: number;
   };
-  strokes: DrawingStroke[];
   version: 1;
 };
 
@@ -162,7 +157,26 @@ function validateAndNormalizePayload<TStorageId extends string>(
       return drawingResult;
     }
 
-    return { ok: true, payload };
+    const artifact = payload.drawing.artifact;
+
+    return {
+      ok: true,
+      payload: {
+        drawing: {
+          artifact: {
+            mimeType: "image/png",
+            storageId: artifact.storageId,
+            width: artifact.width,
+            height: artifact.height,
+            ...(artifact.byteSize === undefined ? {} : { byteSize: artifact.byteSize }),
+          },
+          background: { type: "solid", color: payload.drawing.background.color },
+          canvas: { width: payload.drawing.canvas.width, height: payload.drawing.canvas.height },
+          version: 1,
+        },
+        type: "drawing",
+      },
+    };
   }
 
   const textResult = normalizeSubmissionText(payload.text, maxLengthForTextType(payload.type));
@@ -227,18 +241,11 @@ function validateDrawing<TStorageId extends string>(
     return { ok: false, reason: "Drawing PNG artifact is invalid." };
   }
 
-  if (drawing.strokes.length === 0) {
-    return { ok: false, reason: "Drawing must include at least one stroke." };
-  }
-
-  if (drawing.strokes.length > MAX_DRAWING_STROKES) {
-    return { ok: false, reason: "Drawing has too many strokes." };
-  }
-
-  for (const stroke of drawing.strokes) {
-    if (!isValidStroke(stroke)) {
-      return { ok: false, reason: "Drawing stroke data is invalid." };
-    }
+  if (
+    drawing.artifact.byteSize !== undefined &&
+    drawing.artifact.byteSize > MAX_DRAWING_ARTIFACT_BYTES
+  ) {
+    return { ok: false, reason: "Drawing image is too large." };
   }
 
   return { ok: true };
@@ -260,69 +267,6 @@ function isValidArtifact<TStorageId extends string>(
   }
 
   return artifact.byteSize === undefined || isPositiveInteger(artifact.byteSize);
-}
-
-function isValidStroke(stroke: DrawingStroke) {
-  if (stroke.id.trim().length === 0) {
-    return false;
-  }
-
-  if (!allowedDrawingColors.includes(stroke.color)) {
-    return false;
-  }
-
-  if (!allowedBrushSizes.includes(stroke.width)) {
-    return false;
-  }
-
-  if (stroke.points.length === 0 || stroke.points.length > MAX_POINTS_PER_STROKE) {
-    return false;
-  }
-
-  if (!isOptionalNonNegativeFiniteNumber(stroke.startedAt)) {
-    return false;
-  }
-
-  if (!isOptionalNonNegativeFiniteNumber(stroke.endedAt)) {
-    return false;
-  }
-
-  if (
-    stroke.startedAt !== undefined &&
-    stroke.endedAt !== undefined &&
-    stroke.endedAt < stroke.startedAt
-  ) {
-    return false;
-  }
-
-  return stroke.points.every(isValidPoint);
-}
-
-function isValidPoint(point: DrawingPoint) {
-  if (!isFiniteNumber(point.x) || point.x < 0 || point.x > CANVAS_SIZE.width) {
-    return false;
-  }
-
-  if (!isFiniteNumber(point.y) || point.y < 0 || point.y > CANVAS_SIZE.height) {
-    return false;
-  }
-
-  if (
-    point.pressure !== undefined &&
-    (!isFiniteNumber(point.pressure) || point.pressure < 0 || point.pressure > 1)
-  ) {
-    return false;
-  }
-
-  return isOptionalNonNegativeFiniteNumber(point.t);
-}
-
-function isOptionalNonNegativeFiniteNumber(value: number | undefined) {
-  return value === undefined || (isFiniteNumber(value) && value >= 0);
-}
-
-function isFiniteNumber(value: number) {
-  return Number.isFinite(value);
 }
 
 function isPositiveInteger(value: number) {

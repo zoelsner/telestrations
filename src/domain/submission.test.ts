@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { CANVAS_SIZE, DRAWING_BACKGROUND_COLOR } from "./drawing";
 import {
+  MAX_DRAWING_ARTIFACT_BYTES,
   MAX_GUESS_LENGTH,
   MAX_PROMPT_LENGTH,
   prepareEntrySubmission,
@@ -90,6 +91,22 @@ describe("entry submission", () => {
     });
   });
 
+  it("does not persist stroke vectors", () => {
+    const result = prepareEntrySubmission({
+      assignment: pendingAssignment({ entryType: "drawing", turn: 1 }),
+      currentEntryType: "drawing",
+      currentTurn: 1,
+      payload: { drawing: validDrawing(), type: "drawing" },
+      playerId: "player-1",
+      roomStatus: "active",
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok && result.payload.type === "drawing") {
+      expect("strokes" in result.payload.drawing).toBe(false);
+    }
+  });
+
   it("rejects malformed drawing payloads", () => {
     expect(
       prepareEntrySubmission({
@@ -107,7 +124,9 @@ describe("entry submission", () => {
         roomStatus: "active",
       }),
     ).toMatchObject({ code: "invalid_submission_payload", ok: false });
+  });
 
+  it("rejects a drawing whose PNG exceeds the size cap", () => {
     expect(
       prepareEntrySubmission({
         assignment: pendingAssignment({ entryType: "drawing", turn: 1 }),
@@ -116,12 +135,10 @@ describe("entry submission", () => {
         payload: {
           drawing: {
             ...validDrawing(),
-            strokes: [
-              {
-                ...validStroke(),
-                points: [{ x: CANVAS_SIZE.width + 1, y: 20 }],
-              },
-            ],
+            artifact: {
+              ...validDrawing().artifact,
+              byteSize: MAX_DRAWING_ARTIFACT_BYTES + 1,
+            },
           },
           type: "drawing",
         },
@@ -129,6 +146,28 @@ describe("entry submission", () => {
         roomStatus: "active",
       }),
     ).toMatchObject({ code: "invalid_submission_payload", ok: false });
+  });
+
+  it("accepts a drawing at exactly the size cap", () => {
+    const result = prepareEntrySubmission({
+      assignment: pendingAssignment({ entryType: "drawing", turn: 1 }),
+      currentEntryType: "drawing",
+      currentTurn: 1,
+      payload: {
+        drawing: {
+          ...validDrawing(),
+          artifact: {
+            ...validDrawing().artifact,
+            byteSize: MAX_DRAWING_ARTIFACT_BYTES,
+          },
+        },
+        type: "drawing",
+      },
+      playerId: "player-1",
+      roomStatus: "active",
+    });
+
+    expect(result.ok).toBe(true);
   });
 
   it("rejects inactive, missing, wrong-player, wrong-turn, and duplicate submissions", () => {
@@ -212,21 +251,6 @@ function validDrawing(): DrawingSubmission {
       type: "solid",
     },
     canvas: CANVAS_SIZE,
-    strokes: [validStroke()],
     version: 1,
-  };
-}
-
-function validStroke() {
-  return {
-    color: "#111827",
-    endedAt: 20,
-    id: "stroke-1",
-    points: [
-      { t: 10, x: 10, y: 12 },
-      { pressure: 0.5, t: 20, x: 120, y: 140 },
-    ],
-    startedAt: 10,
-    width: 8,
   };
 }

@@ -44,6 +44,7 @@ import { HEARTBEAT_INTERVAL_MS, isPlayerDisconnected } from "@/domain/presence";
 import { buildRevealView } from "@/domain/reveal";
 import { normalizeRoomCode, validateDisplayName } from "@/domain/room-join";
 import { getStartGameGate } from "@/domain/start-game";
+import { MAX_DRAWING_ARTIFACT_BYTES } from "@/domain/submission";
 import { TIMER_SECONDS, getTurnTimerState } from "@/domain/timer";
 import { getOrCreatePlayerToken } from "../../room-session";
 import { downloadRevealPdf } from "./pdf-export";
@@ -725,6 +726,11 @@ function DrawingTaskForm({
       return;
     }
 
+    if (drawing.exportStatus.byteSize > MAX_DRAWING_ARTIFACT_BYTES) {
+      setError("This drawing is too large to submit. Try simplifying it.");
+      return;
+    }
+
     setError(null);
     setIsSubmitting(true);
 
@@ -763,7 +769,6 @@ function DrawingTaskForm({
               type: "solid",
             },
             canvas: CANVAS_SIZE,
-            strokes: drawing.strokes,
             version: 1,
           },
           type: "drawing",
