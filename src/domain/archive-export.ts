@@ -101,7 +101,7 @@ export function buildArchiveManifest({
       `Prompts: ${formatPromptMode(room.settings)}`,
       `Timers: ${formatTimers(room.settings)}`,
     ],
-    title: `Telestrations ${roomCode}`,
+    title: `Pass the Doodle ${roomCode}`,
   };
 }
 
