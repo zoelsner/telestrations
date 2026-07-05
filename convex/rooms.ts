@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { MAX_PLAYERS_PER_ROOM } from "../src/domain/game-state";
@@ -24,6 +24,7 @@ import {
   getTurnExpirySweep,
 } from "../src/domain/recovery";
 import { getClaimSeatGate, getIssueRejoinLinkGate } from "../src/domain/rejoin";
+import { getReclaimSeatGate } from "../src/domain/seat-reclaim";
 import {
   PLAYER_TOKEN_BYTE_LENGTH,
   generatePlayerToken,
@@ -574,13 +575,84 @@ export const claimSeat = mutation({
       throw roomError(gate.code, gate.message);
     }
 
-    await ctx.db.patch(gate.targetPlayerId, {
-      tokenHash: claimantTokenHash,
-      status: "connected",
-      lastSeenAt: now,
-      rejoinTokenHash: undefined,
-      rejoinIssuedAt: undefined,
+    await rebindSeatToToken(ctx, gate.targetPlayerId, claimantTokenHash, now);
+
+    const target = await ctx.db.get(gate.targetPlayerId);
+
+    return {
+      roomId: room._id,
+      playerId: gate.targetPlayerId,
+      code: room.code,
+      sharePath: `/room/${room.code}`,
+      isHost: target?.isHost ?? false,
+    };
+  },
+});
+
+export const heartbeat = mutation({
+  args: {
+    code: v.string(),
+    playerToken: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const code = requireValidRoomCode(args.code);
+    const tokenHash = await requireValidTokenHash(args.playerToken);
+    const room = await getRoomByCode(ctx, code);
+
+    if (!room) {
+      return null;
+    }
+
+    const player = await getPlayerByTokenHash(ctx, room._id, tokenHash);
+
+    if (!player || player.status === "removed") {
+      return null;
+    }
+
+    await ctx.db.patch(player._id, { lastSeenAt: Date.now() });
+
+    return null;
+  },
+});
+
+export const reclaimSeat = mutation({
+  args: {
+    code: v.string(),
+    playerToken: v.string(),
+    targetPlayerId: v.id("players"),
+  },
+  returns: roomResult,
+  handler: async (ctx, args) => {
+    const code = requireValidRoomCode(args.code);
+    const claimantTokenHash = await requireValidTokenHash(args.playerToken);
+    const now = Date.now();
+    const room = await getRoomByCode(ctx, code);
+
+    if (!room) {
+      throw roomError("room_not_found", "Room not found.");
+    }
+
+    const players = await getPlayersByRoom(ctx, room._id);
+    const gate = getReclaimSeatGate({
+      claimantTokenHash,
+      now,
+      players: players.map((player) => ({
+        id: player._id,
+        isHost: player.isHost,
+        lastSeenAt: player.lastSeenAt,
+        status: player.status,
+        tokenHash: player.tokenHash,
+      })),
+      roomStatus: room.status,
+      targetPlayerId: args.targetPlayerId,
     });
+
+    if (!gate.ok) {
+      throw roomError(gate.code, gate.message);
+    }
+
+    await rebindSeatToToken(ctx, gate.targetPlayerId, claimantTokenHash, now);
 
     const target = await ctx.db.get(gate.targetPlayerId);
 
@@ -653,6 +725,7 @@ export const getLobby = query({
         status: player.status,
         isHost: player.isHost,
         isCurrentPlayer: currentPlayer?._id === player._id,
+        lastSeenAt: player.lastSeenAt,
       })),
       currentPlayer:
         currentPlayer === null
@@ -1743,6 +1816,21 @@ async function getPlayerByTokenHash(
     .query("players")
     .withIndex("by_room_token", (q) => q.eq("roomId", roomId).eq("tokenHash", tokenHash))
     .unique();
+}
+
+async function rebindSeatToToken(
+  ctx: MutationCtx,
+  playerId: Id<"players">,
+  tokenHash: string,
+  now: number,
+) {
+  await ctx.db.patch(playerId, {
+    tokenHash,
+    status: "connected",
+    lastSeenAt: now,
+    rejoinTokenHash: undefined,
+    rejoinIssuedAt: undefined,
+  });
 }
 
 async function getAssignmentsByRoomTurn(
