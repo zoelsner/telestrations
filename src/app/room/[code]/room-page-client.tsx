@@ -3,6 +3,7 @@
 import { useMutation, useQuery } from "convex/react";
 import {
   AlertCircle,
+  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -21,13 +22,22 @@ import {
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  FormEvent,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import Image from "next/image";
 
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { DrawingBoard, type DrawingBoardValue } from "@/components/drawing-board";
-import { Button, Panel, TextInput } from "@/components/ui";
+import { Button, IconButton, Panel, TextInput } from "@/components/ui";
 import { buildActiveTaskView, type ActiveTaskPreviousEntry } from "@/domain/active-task";
 import { CANVAS_SIZE, DRAWING_BACKGROUND_COLOR } from "@/domain/drawing";
 import { buildRevealView } from "@/domain/reveal";
@@ -64,11 +74,17 @@ export function RoomPageClient({
     return <RoomUnavailable code={normalizedCode} />;
   }
 
-  return <RoomPageLive code={normalizedCode} />;
+  return (
+    <Suspense fallback={null}>
+      <RoomPageLive code={normalizedCode} />
+    </Suspense>
+  );
 }
 
 function RoomPageLive({ code }: { code: string }) {
   const playerToken = usePlayerToken(code);
+  const claim = useRejoinClaim({ code, playerToken });
+  const isClaiming = claim.status === "claiming";
 
   const lobby = useQuery(api.rooms.getLobby, playerToken === null ? "skip" : { code, playerToken });
   const activeTask = useQuery(
@@ -121,6 +137,8 @@ function RoomPageLive({ code }: { code: string }) {
           </div>
         </header>
 
+        <RejoinClaimBanner error={claim.error} status={claim.status} />
+
         <section
           className={
             focusRoom
@@ -148,7 +166,7 @@ function RoomPageLive({ code }: { code: string }) {
                 <ActiveTaskSurface activeTask={activeTask} code={code} playerToken={playerToken} />
               )
             ) : (
-              <LobbyView lobby={lobby} />
+              <LobbyView code={code} lobby={lobby} playerToken={playerToken} />
             )}
           </Panel>
 
@@ -161,6 +179,8 @@ function RoomPageLive({ code }: { code: string }) {
                   <MissingRoom code={code} />
                 ) : lobby.currentPlayer ? (
                   <PlayerStatus code={code} lobby={lobby} playerToken={playerToken} />
+                ) : isClaiming ? (
+                  <LoadingRoom />
                 ) : (
                   <JoinRoomForm code={code} playerToken={playerToken} />
                 )}
@@ -209,7 +229,157 @@ function emptySubscribe() {
   return () => {};
 }
 
-function LobbyView({ compact = false, lobby }: { compact?: boolean; lobby: Lobby }) {
+type RejoinClaimStatus = "idle" | "claiming" | "error";
+
+function useRejoinClaim({ code, playerToken }: { code: string; playerToken: string | null }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const claimSeat = useMutation(api.rooms.claimSeat);
+  const rejoinSecret = searchParams.get("rejoin");
+  const [status, setStatus] = useState<RejoinClaimStatus>(rejoinSecret ? "claiming" : "idle");
+  const [error, setError] = useState<string | null>(null);
+  const attemptedSecretRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!rejoinSecret || playerToken === null) {
+      return;
+    }
+
+    if (attemptedSecretRef.current === rejoinSecret) {
+      return;
+    }
+
+    attemptedSecretRef.current = rejoinSecret;
+    setStatus("claiming");
+    setError(null);
+
+    let cancelled = false;
+
+    claimSeat({ code, playerToken, rejoinSecret })
+      .then(() => {
+        if (!cancelled) {
+          setStatus("idle");
+        }
+      })
+      .catch((caughtError) => {
+        if (!cancelled) {
+          setError(errorMessage(caughtError, "This rejoin link is no longer valid."));
+          setStatus("error");
+        }
+      })
+      .finally(() => {
+        // Strip the secret from the URL so a refresh cannot replay it and so the
+        // now-bound local token drives every query normally.
+        router.replace(`/room/${code}`);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [claimSeat, code, playerToken, rejoinSecret, router]);
+
+  return { error, status };
+}
+
+function RejoinClaimBanner({ error, status }: { error: string | null; status: RejoinClaimStatus }) {
+  if (status === "claiming") {
+    return (
+      <div className="mt-4 flex items-center gap-2 rounded-[10px] border-[1.5px] border-[var(--app-cream-border)] bg-[var(--app-cream)] px-4 py-3 text-sm text-[var(--app-cream-text)]">
+        <Loader2 className="animate-spin" size={16} />
+        Rejoining your seat…
+      </div>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <div
+        className="mt-4 flex items-start gap-2 rounded-[10px] border-[1.5px] border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+        role="alert"
+      >
+        <AlertCircle className="mt-0.5 shrink-0" size={16} />
+        <span>
+          {error ?? "This rejoin link is no longer valid."} Ask the host for a fresh link, or join
+          below.
+        </span>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function RejoinLinkButton({
+  code,
+  displayName,
+  playerToken,
+  targetPlayerId,
+}: {
+  code: string;
+  displayName: string;
+  playerToken: string;
+  targetPlayerId: Id<"players">;
+}) {
+  const issueRejoinLink = useMutation(api.rooms.issueRejoinLink);
+  const [copied, setCopied] = useState(false);
+  const [isIssuing, setIsIssuing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleCopy() {
+    if (isIssuing) {
+      return;
+    }
+
+    setError(null);
+    setIsIssuing(true);
+
+    try {
+      const result = await issueRejoinLink({ code, playerToken, targetPlayerId });
+      await navigator.clipboard.writeText(
+        `${window.location.origin}/room/${code}?rejoin=${result.rejoinSecret}`,
+      );
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1_500);
+    } catch (caughtError) {
+      setError(errorMessage(caughtError, "Could not create a rejoin link."));
+    } finally {
+      setIsIssuing(false);
+    }
+  }
+
+  return (
+    <span className="flex items-center gap-2">
+      {error ? <span className="text-[11px] text-red-600">{error}</span> : null}
+      <IconButton
+        disabled={isIssuing}
+        label={`Copy rejoin link for ${displayName}`}
+        onClick={handleCopy}
+      >
+        {isIssuing ? (
+          <Loader2 className="animate-spin" size={16} />
+        ) : copied ? (
+          <Check size={16} />
+        ) : (
+          <Link2 size={16} />
+        )}
+      </IconButton>
+    </span>
+  );
+}
+
+function LobbyView({
+  code,
+  compact = false,
+  lobby,
+  playerToken,
+}: {
+  code: string;
+  compact?: boolean;
+  lobby: Lobby;
+  playerToken: string | null;
+}) {
+  const canIssueRejoin = lobby.currentPlayer?.isHost === true && playerToken !== null;
+
   return (
     <div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -253,20 +423,30 @@ function LobbyView({ compact = false, lobby }: { compact?: boolean; lobby: Lobby
                 </span>
               ) : null}
             </div>
-            <div className="flex shrink-0 items-center gap-2 text-xs text-[var(--app-muted)]">
-              {player.isHost ? (
-                <>
-                  <Crown className="text-[var(--app-gold)]" size={14} />
-                  <span className="text-[10.5px] font-bold uppercase tracking-wide text-[var(--app-cream-text)]">
-                    Host
-                  </span>
-                </>
-              ) : (
-                <>
-                  <UserRound size={14} />
-                  <span className="text-xs text-[var(--app-faint)]">{player.status}</span>
-                </>
-              )}
+            <div className="flex shrink-0 items-center gap-2">
+              {canIssueRejoin && playerToken !== null && !player.isHost ? (
+                <RejoinLinkButton
+                  code={code}
+                  displayName={player.displayName}
+                  playerToken={playerToken}
+                  targetPlayerId={player.id}
+                />
+              ) : null}
+              <div className="flex items-center gap-2 text-xs text-[var(--app-muted)]">
+                {player.isHost ? (
+                  <>
+                    <Crown className="text-[var(--app-gold)]" size={14} />
+                    <span className="text-[10.5px] font-bold uppercase tracking-wide text-[var(--app-cream-text)]">
+                      Host
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <UserRound size={14} />
+                    <span className="text-xs text-[var(--app-faint)]">{player.status}</span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         ))}
@@ -719,20 +899,32 @@ function WaitingForTurn({
                 </div>
               </div>
 
-              {canRecover && isPending ? (
-                <Button
-                  aria-label={`Skip ${player.displayName}`}
-                  className="w-full sm:w-fit"
-                  disabled={isSkipping}
-                  onClick={() => handleSkip(player)}
-                >
-                  {isSkipping ? (
-                    <Loader2 className="animate-spin" size={16} />
-                  ) : (
-                    <SkipForward size={16} />
-                  )}
-                  Skip
-                </Button>
+              {canRecover && (!player.isHost || isPending) ? (
+                <div className="flex items-center justify-end gap-2">
+                  {!player.isHost ? (
+                    <RejoinLinkButton
+                      code={code}
+                      displayName={player.displayName}
+                      playerToken={playerToken}
+                      targetPlayerId={player.playerId}
+                    />
+                  ) : null}
+                  {isPending ? (
+                    <Button
+                      aria-label={`Skip ${player.displayName}`}
+                      className="w-full sm:w-fit"
+                      disabled={isSkipping}
+                      onClick={() => handleSkip(player)}
+                    >
+                      {isSkipping ? (
+                        <Loader2 className="animate-spin" size={16} />
+                      ) : (
+                        <SkipForward size={16} />
+                      )}
+                      Skip
+                    </Button>
+                  ) : null}
+                </div>
               ) : null}
             </div>
           );

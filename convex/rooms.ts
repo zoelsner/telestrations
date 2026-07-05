@@ -23,7 +23,10 @@ import {
   getSkipAssignmentGate,
   getTurnExpirySweep,
 } from "../src/domain/recovery";
+import { getClaimSeatGate, getIssueRejoinLinkGate } from "../src/domain/rejoin";
 import {
+  PLAYER_TOKEN_BYTE_LENGTH,
+  generatePlayerToken,
   generateRoomCode,
   validateDisplayName,
   validatePlayerToken,
@@ -39,6 +42,11 @@ const roomResult = v.object({
   code: v.string(),
   sharePath: v.string(),
   isHost: v.boolean(),
+});
+
+const rejoinLinkResult = v.object({
+  rejoinSecret: v.string(),
+  targetPlayerId: v.id("players"),
 });
 
 const startGameResult = v.object({
@@ -468,6 +476,120 @@ export const joinRoom = mutation({
       code: room.code,
       sharePath: `/room/${room.code}`,
       isHost: false,
+    };
+  },
+});
+
+export const issueRejoinLink = mutation({
+  args: {
+    code: v.string(),
+    playerToken: v.string(),
+    targetPlayerId: v.id("players"),
+  },
+  returns: rejoinLinkResult,
+  handler: async (ctx, args) => {
+    const code = requireValidRoomCode(args.code);
+    const tokenHash = await requireValidTokenHash(args.playerToken);
+    const now = Date.now();
+    const room = await getRoomByCode(ctx, code);
+
+    if (!room) {
+      throw roomError("room_not_found", "Room not found.");
+    }
+
+    const actor = await getPlayerByTokenHash(ctx, room._id, tokenHash);
+    const target = await ctx.db.get(args.targetPlayerId);
+    const gate = getIssueRejoinLinkGate({
+      actor:
+        actor === null
+          ? null
+          : {
+              isHost: actor.isHost,
+              status: actor.status,
+            },
+      target:
+        target === null
+          ? null
+          : {
+              isHost: target.isHost,
+              roomId: target.roomId,
+            },
+      roomId: room._id,
+      roomStatus: room.status,
+    });
+
+    if (!gate.ok) {
+      throw roomError(gate.code, gate.message);
+    }
+
+    const rejoinSecret = createRejoinSecret();
+    const rejoinTokenHash = await hashPlayerToken(rejoinSecret);
+
+    await ctx.db.patch(args.targetPlayerId, {
+      rejoinTokenHash,
+      rejoinIssuedAt: now,
+    });
+
+    return {
+      rejoinSecret,
+      targetPlayerId: args.targetPlayerId,
+    };
+  },
+});
+
+export const claimSeat = mutation({
+  args: {
+    code: v.string(),
+    playerToken: v.string(),
+    rejoinSecret: v.string(),
+  },
+  returns: roomResult,
+  handler: async (ctx, args) => {
+    const code = requireValidRoomCode(args.code);
+    const claimantTokenHash = await requireValidTokenHash(args.playerToken);
+    const rejoinSecretHash = await hashPlayerToken(args.rejoinSecret);
+    const now = Date.now();
+    const room = await getRoomByCode(ctx, code);
+
+    if (!room) {
+      throw roomError("room_not_found", "Room not found.");
+    }
+
+    const players = await getPlayersByRoom(ctx, room._id);
+    const gate = getClaimSeatGate({
+      claimantTokenHash,
+      players: players.map((player) => ({
+        id: player._id,
+        isHost: player.isHost,
+        ...(player.rejoinTokenHash === undefined
+          ? {}
+          : { rejoinTokenHash: player.rejoinTokenHash }),
+        tokenHash: player.tokenHash,
+      })),
+      rejoinSecretHash,
+      roomStatus: room.status,
+    });
+
+    if (!gate.ok) {
+      throw roomError(gate.code, gate.message);
+    }
+
+    await ctx.db.patch(gate.targetPlayerId, {
+      tokenHash: claimantTokenHash,
+      status: "connected",
+      lastSeenAt: now,
+      rejoinTokenHash: undefined,
+      rejoinIssuedAt: undefined,
+    });
+
+    const target = await ctx.db.get(gate.targetPlayerId);
+
+    return {
+      roomId: room._id,
+      playerId: gate.targetPlayerId,
+      code: room.code,
+      sharePath: `/room/${room.code}`,
+      isHost: target?.isHost ?? false,
     };
   },
 });
@@ -1891,6 +2013,23 @@ async function hashPlayerToken(playerToken: string) {
   const digest = await crypto.subtle.digest("SHA-256", bytes);
 
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function createRejoinSecret() {
+  const bytes = new Uint8Array(PLAYER_TOKEN_BYTE_LENGTH);
+  crypto.getRandomValues(bytes);
+  let index = 0;
+
+  return generatePlayerToken(() => {
+    const byte = bytes[index];
+    index += 1;
+
+    if (byte === undefined) {
+      throw new Error("Rejoin secret generator exhausted its byte buffer.");
+    }
+
+    return byte;
+  });
 }
 
 function randomIndex(maxExclusive: number) {
