@@ -6,9 +6,21 @@ import { getReclaimSeatGate } from "./seat-reclaim";
 describe("getReclaimSeatGate", () => {
   const now = 100_000;
   const players = [
-    { id: "host", tokenHash: "host-h", isHost: true, status: "connected" as const, lastSeenAt: 100_000 },
+    {
+      id: "host",
+      tokenHash: "host-h",
+      isHost: true,
+      status: "connected" as const,
+      lastSeenAt: 100_000,
+    },
     { id: "dead", tokenHash: "dead-h", isHost: false, status: "connected" as const, lastSeenAt: 0 },
-    { id: "live", tokenHash: "live-h", isHost: false, status: "connected" as const, lastSeenAt: 99_000 },
+    {
+      id: "live",
+      tokenHash: "live-h",
+      isHost: false,
+      status: "connected" as const,
+      lastSeenAt: 99_000,
+    },
     { id: "gone", tokenHash: "gone-h", isHost: false, status: "removed" as const, lastSeenAt: 0 },
   ];
   const base = {
@@ -63,7 +75,13 @@ describe("getReclaimSeatGate", () => {
   it("treats the presence timeout boundary strictly", () => {
     const boundaryPlayers = [
       ...players.filter((player) => player.id !== "dead"),
-      { id: "dead", tokenHash: "dead-h", isHost: false, status: "connected" as const, lastSeenAt: now - PRESENCE_TIMEOUT_MS },
+      {
+        id: "dead",
+        tokenHash: "dead-h",
+        isHost: false,
+        status: "connected" as const,
+        lastSeenAt: now - PRESENCE_TIMEOUT_MS,
+      },
     ];
 
     expect(

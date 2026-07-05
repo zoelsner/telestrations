@@ -8,9 +8,9 @@ describe("isPlayerDisconnected", () => {
   });
 
   it("is not disconnected exactly at the timeout boundary (strict >)", () => {
-    expect(
-      isPlayerDisconnected({ lastSeenAt: 100_000 - PRESENCE_TIMEOUT_MS, now: 100_000 }),
-    ).toBe(false);
+    expect(isPlayerDisconnected({ lastSeenAt: 100_000 - PRESENCE_TIMEOUT_MS, now: 100_000 })).toBe(
+      false,
+    );
   });
 
   it("is disconnected just over the timeout boundary", () => {
