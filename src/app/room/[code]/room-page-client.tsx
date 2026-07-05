@@ -429,6 +429,7 @@ function LobbyView({
   playerToken: string | null;
 }) {
   const canIssueRejoin = lobby.currentPlayer?.isHost === true && playerToken !== null;
+  const now = useNow(1_000);
 
   return (
     <div>
@@ -451,55 +452,66 @@ function LobbyView({
       </div>
 
       <div className={`${compact ? "mt-4" : "mt-5"} grid gap-2`}>
-        {lobby.players.map((player) => (
-          <div
-            className={`flex min-h-12 items-center justify-between gap-3 rounded-[10px] px-3 py-2 text-sm sm:min-h-11 sm:py-0 ${
-              player.isCurrentPlayer
-                ? "border-[1.5px] border-[var(--app-cream-border)] bg-[var(--app-cream)]"
-                : "border-[1.5px] border-[var(--app-divider)] bg-white"
-            }`}
-            key={player.id}
-          >
-            <div className="flex min-w-0 items-center gap-3">
-              <span
-                aria-hidden
-                className="mb-1 h-4 w-8 shrink-0 self-end rounded-t-full"
-                style={{ backgroundColor: PLAYER_COLORS[player.order % PLAYER_COLORS.length] }}
-              />
-              <span className="truncate font-medium">{player.displayName}</span>
-              {player.isCurrentPlayer ? (
-                <span className="shrink-0 text-[10.5px] font-bold uppercase tracking-wide text-[var(--app-faint)]">
-                  You
-                </span>
-              ) : null}
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {canIssueRejoin && playerToken !== null && !player.isHost ? (
-                <RejoinLinkButton
-                  code={code}
-                  displayName={player.displayName}
-                  playerToken={playerToken}
-                  targetPlayerId={player.id}
+        {lobby.players.map((player) => {
+          const isDisconnected =
+            player.status !== "removed" &&
+            player.lastSeenAt != null &&
+            isPlayerDisconnected({ lastSeenAt: player.lastSeenAt, now });
+
+          return (
+            <div
+              className={`flex min-h-12 items-center justify-between gap-3 rounded-[10px] px-3 py-2 text-sm sm:min-h-11 sm:py-0 ${
+                player.isCurrentPlayer
+                  ? "border-[1.5px] border-[var(--app-cream-border)] bg-[var(--app-cream)]"
+                  : "border-[1.5px] border-[var(--app-divider)] bg-white"
+              }`}
+              key={player.id}
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <span
+                  aria-hidden
+                  className="mb-1 h-4 w-8 shrink-0 self-end rounded-t-full"
+                  style={{ backgroundColor: PLAYER_COLORS[player.order % PLAYER_COLORS.length] }}
                 />
-              ) : null}
-              <div className="flex items-center gap-2 text-xs text-[var(--app-muted)]">
-                {player.isHost ? (
-                  <>
-                    <Crown className="text-[var(--app-gold)]" size={14} />
-                    <span className="text-[10.5px] font-bold uppercase tracking-wide text-[var(--app-cream-text)]">
-                      Host
+                <span className="truncate font-medium">{player.displayName}</span>
+                {player.isCurrentPlayer ? (
+                  <span className="shrink-0 text-[10.5px] font-bold uppercase tracking-wide text-[var(--app-faint)]">
+                    You
+                  </span>
+                ) : null}
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                {canIssueRejoin && playerToken !== null && !player.isHost ? (
+                  <RejoinLinkButton
+                    code={code}
+                    displayName={player.displayName}
+                    playerToken={playerToken}
+                    targetPlayerId={player.id}
+                  />
+                ) : null}
+                <div className="flex items-center gap-2 text-xs text-[var(--app-muted)]">
+                  {player.isHost ? (
+                    <>
+                      <Crown className="text-[var(--app-gold)]" size={14} />
+                      <span className="text-[10.5px] font-bold uppercase tracking-wide text-[var(--app-cream-text)]">
+                        Host
+                      </span>
+                    </>
+                  ) : isDisconnected ? (
+                    <span className="rounded-full border-[1.5px] border-[var(--app-cream-border)] bg-[var(--app-cream)] px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-[var(--app-cream-text)]">
+                      Offline
                     </span>
-                  </>
-                ) : (
-                  <>
-                    <UserRound size={14} />
-                    <span className="text-xs text-[var(--app-faint)]">{player.status}</span>
-                  </>
-                )}
+                  ) : (
+                    <>
+                      <UserRound size={14} />
+                      <span className="text-xs text-[var(--app-faint)]">{player.status}</span>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
