@@ -45,22 +45,24 @@ const drawingPayloadV1 = v.object({
     type: v.literal("solid"),
     color: v.string(),
   }),
-  strokes: v.array(
-    v.object({
-      id: v.string(),
-      color: v.string(),
-      width: v.number(),
-      points: v.array(
-        v.object({
-          x: v.number(),
-          y: v.number(),
-          pressure: v.optional(v.number()),
-          t: v.optional(v.number()),
-        }),
-      ),
-      startedAt: v.optional(v.number()),
-      endedAt: v.optional(v.number()),
-    }),
+  strokes: v.optional(
+    v.array(
+      v.object({
+        id: v.string(),
+        color: v.string(),
+        width: v.number(),
+        points: v.array(
+          v.object({
+            x: v.number(),
+            y: v.number(),
+            pressure: v.optional(v.number()),
+            t: v.optional(v.number()),
+          }),
+        ),
+        startedAt: v.optional(v.number()),
+        endedAt: v.optional(v.number()),
+      }),
+    ),
   ),
   artifact: v.object({
     mimeType: v.literal("image/png"),
