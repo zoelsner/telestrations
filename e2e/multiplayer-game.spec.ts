@@ -30,7 +30,7 @@ test.describe("multiplayer game loop", () => {
       await submitPrompt(host, "A sprint review with confetti");
 
       await expect(
-        host.getByRole("heading", { name: "Waiting for the rest of the team" }).first(),
+        host.getByRole("heading", { name: "You're in — 2 to go" }).first(),
       ).toBeVisible();
       await expect(host.getByRole("heading", { name: "Lobby" })).toHaveCount(0);
       await expect(host.getByLabel("Turn status").getByText("Stuck Teammate")).toBeVisible();
@@ -39,7 +39,7 @@ test.describe("multiplayer game loop", () => {
 
       await expect(host.getByText("1 assignment was skipped by the host this turn")).toBeVisible();
       await expect(
-        guestOne.getByRole("heading", { name: "Waiting for the rest of the team" }).first(),
+        guestOne.getByRole("heading", { name: "You're in — 1 to go" }).first(),
       ).toBeVisible();
 
       await submitPrompt(guestTwo, "A roadmap drawn on a napkin");
@@ -85,7 +85,7 @@ test.describe("multiplayer game loop", () => {
 
       await expect(host.getByRole("heading", { name: "Draw this" })).toBeVisible();
       await expect(host.getByText("Previous prompt")).toBeVisible();
-      await expect(host.getByRole("button", { name: "Submit prompt" })).toHaveCount(0);
+      await expect(host.getByRole("button", { name: "Send it down the line" })).toHaveCount(0);
       await expect(guestOne.getByRole("heading", { name: "Draw this" })).toBeVisible();
     } finally {
       await hostContext.close();
@@ -184,7 +184,7 @@ test.describe("multiplayer game loop", () => {
       await submitDrawing(guestOne);
       await submitDrawing(guestTwo);
 
-      await expect(host.getByRole("heading", { name: "Guess this" })).toBeVisible();
+      await expect(host.getByRole("heading", { name: "What is this?" })).toBeVisible();
       await expect(host.getByText(/^(0:5\d|1:00)$/).first()).toBeVisible();
       await expect(host.getByText("Previous drawing")).toBeVisible();
 
@@ -226,20 +226,20 @@ async function joinRoom(page: Page, roomUrl: string, displayName: string) {
 async function submitPrompt(page: Page, prompt: string) {
   await expect(page.getByRole("heading", { name: "Write a prompt" })).toBeVisible();
   await page.getByPlaceholder("A project kickoff on roller skates").fill(prompt);
-  await page.getByRole("button", { name: "Submit prompt" }).click();
-  await expect(page.getByRole("button", { name: "Submit prompt" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Send it down the line" }).click();
+  await expect(page.getByRole("button", { name: "Send it down the line" })).toHaveCount(0);
 }
 
 async function submitDrawing(page: Page) {
   await expect(page.getByRole("heading", { name: "Draw this" })).toBeVisible();
   await page.getByTestId("drawing-canvas-element").click();
   await expect(page.getByTestId("drawing-status")).toContainText("1 stroke");
-  await page.getByRole("button", { name: "Submit drawing" }).click();
-  await expect(page.getByRole("button", { name: "Submit drawing" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Pass it on" }).click();
+  await expect(page.getByRole("button", { name: "Pass it on" })).toHaveCount(0);
 }
 
 async function submitGuess(page: Page, guess: string) {
-  await expect(page.getByRole("heading", { name: "Guess this" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What is this?" })).toBeVisible();
   await page.getByPlaceholder("Type what you see").fill(guess);
-  await page.getByRole("button", { name: "Submit guess" }).click();
+  await page.getByRole("button", { name: "Lock in guess" }).click();
 }

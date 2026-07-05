@@ -20,7 +20,7 @@ describe("buildActiveTaskView", () => {
       inputLabel: "Your prompt",
       maxLength: 160,
       state: "compose",
-      submitLabel: "Submit prompt",
+      submitLabel: "Send it down the line",
       title: "Write a prompt",
     });
   });
@@ -52,7 +52,7 @@ describe("buildActiveTaskView", () => {
         value: "A sales forecast catching fire",
       },
       state: "compose",
-      submitLabel: "Submit drawing",
+      submitLabel: "Pass it on",
       title: "Draw this",
     });
   });
@@ -86,8 +86,8 @@ describe("buildActiveTaskView", () => {
         turn: 1,
       },
       state: "compose",
-      submitLabel: "Submit guess",
-      title: "Guess this",
+      submitLabel: "Lock in guess",
+      title: "What is this?",
     });
   });
 

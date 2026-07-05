@@ -42,7 +42,7 @@ export type ActiveTaskView =
       inputLabel: "Your prompt";
       maxLength: typeof MAX_PROMPT_LENGTH;
       state: "compose";
-      submitLabel: "Submit prompt";
+      submitLabel: "Send it down the line";
       title: "Write a prompt";
     }
   | {
@@ -50,7 +50,7 @@ export type ActiveTaskView =
       entryType: "drawing";
       previousEntry?: ActiveTaskPreviousEntry;
       state: "compose";
-      submitLabel: "Submit drawing";
+      submitLabel: "Pass it on";
       title: "Draw this";
     }
   | {
@@ -60,8 +60,8 @@ export type ActiveTaskView =
       maxLength: typeof MAX_GUESS_LENGTH;
       previousEntry?: ActiveTaskPreviousEntry;
       state: "compose";
-      submitLabel: "Submit guess";
-      title: "Guess this";
+      submitLabel: "Lock in guess";
+      title: "What is this?";
     };
 
 export function buildActiveTaskView({
@@ -105,7 +105,7 @@ export function buildActiveTaskView({
       inputLabel: "Your prompt",
       maxLength: MAX_PROMPT_LENGTH,
       state: "compose",
-      submitLabel: "Submit prompt",
+      submitLabel: "Send it down the line",
       title: "Write a prompt",
     };
   }
@@ -118,7 +118,7 @@ export function buildActiveTaskView({
         ? {}
         : { previousEntry: assignment.previousEntry }),
       state: "compose",
-      submitLabel: "Submit drawing",
+      submitLabel: "Pass it on",
       title: "Draw this",
     };
   }
@@ -130,7 +130,7 @@ export function buildActiveTaskView({
     maxLength: MAX_GUESS_LENGTH,
     ...(assignment.previousEntry === undefined ? {} : { previousEntry: assignment.previousEntry }),
     state: "compose",
-    submitLabel: "Submit guess",
-    title: "Guess this",
+    submitLabel: "Lock in guess",
+    title: "What is this?",
   };
 }

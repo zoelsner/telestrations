@@ -704,6 +704,11 @@ function TextTaskForm({
         {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
         {submitLabel}
       </Button>
+      {entryType === "guess" ? (
+        <p className="rounded-[10px] border-[1.5px] border-dashed border-[var(--app-cream-border)] px-4 py-3 text-xs leading-6 text-[var(--app-muted)]">
+          Only you can see this drawing. Your guess becomes the next player&apos;s prompt.
+        </p>
+      ) : null}
     </form>
   );
 }
@@ -911,11 +916,10 @@ function WaitingForTurn({
         </span>
         <div>
           <h2 className="font-display text-2xl text-[var(--app-foreground)]">
-            Waiting for the rest of the team
+            You&apos;re in — {round.pendingCount} to go
           </h2>
           <p className="mt-1 text-sm leading-6 text-[var(--app-muted)]">
-            {round.pendingCount}{" "}
-            {round.pendingCount === 1 ? "player still needs" : "players still need"} to submit.
+            Stretch your drawing hand. The round moves when everyone submits.
           </p>
         </div>
       </div>
