@@ -251,6 +251,26 @@ function validateDrawing<TStorageId extends string>(
   return { ok: true };
 }
 
+export type DrawingBlobMetadata = { size: number; contentType?: string };
+
+export function validateDrawingBlob(
+  blob: DrawingBlobMetadata | null,
+): { ok: true } | { ok: false; reason: string; deleteBlob: boolean } {
+  if (blob === null) {
+    return { ok: false, reason: "Drawing upload is missing.", deleteBlob: false };
+  }
+
+  if (blob.size > MAX_DRAWING_ARTIFACT_BYTES) {
+    return { ok: false, reason: "Drawing image is too large.", deleteBlob: true };
+  }
+
+  if (blob.contentType !== "image/png") {
+    return { ok: false, reason: "Drawing image is invalid.", deleteBlob: true };
+  }
+
+  return { ok: true };
+}
+
 function isValidArtifact<TStorageId extends string>(
   artifact: DrawingSubmission<TStorageId>["artifact"],
 ) {
