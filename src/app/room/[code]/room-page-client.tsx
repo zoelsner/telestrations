@@ -88,7 +88,7 @@ function RoomPageLive({ code }: { code: string }) {
     lobby !== undefined &&
     lobby !== null &&
     lobby.currentPlayer !== null &&
-    lobby.room.status === "reveal";
+    (lobby.room.status === "reveal" || lobby.room.status === "archived");
   const focusRoom = showActiveTask || showReveal;
 
   return (

@@ -5,6 +5,7 @@ import type { Doc } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { MAX_PLAYERS_PER_ROOM } from "../src/domain/game-state";
+import { getRoomLifecycleAction } from "../src/domain/lifecycle";
 import {
   buildTurnAssignments,
   isTurnComplete,
@@ -1294,6 +1295,164 @@ export const expireRoomTurn = internalMutation({
       updatedAt: now,
     });
     await advanceRoomAfterTurnIfReady(ctx, room, now);
+
+    return null;
+  },
+});
+
+// Upper bound on rooms scheduled for archive/purge per lifecycle sweep so a large
+// backlog is drained across several hourly runs instead of one heavy transaction.
+const MAX_LIFECYCLE_ROOMS_PER_SWEEP = 50;
+
+function roomLifecycleAction(room: Doc<"rooms">, now: number) {
+  return getRoomLifecycleAction({
+    archivedAt: room.archivedAt,
+    now,
+    revealedAt: room.revealedAt,
+    status: room.status,
+    updatedAt: room.updatedAt,
+  });
+}
+
+/**
+ * Hourly data-lifecycle sweep. Archives rooms that finished reveal long ago (kept
+ * viewable) and abandoned rooms that stalled, then purges archived rooms past their
+ * retention window. Enumerates candidates via the by_status index and schedules an
+ * isolated per-room mutation for each, bounded per invocation.
+ */
+export const sweepRoomLifecycle = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const now = Date.now();
+    let scheduled = 0;
+
+    // Archive phase: reveal rooms past their view window plus abandoned
+    // setup/lobby/active rooms past the idle window.
+    for (const status of ["reveal", "active", "lobby", "setup"] as const) {
+      if (scheduled >= MAX_LIFECYCLE_ROOMS_PER_SWEEP) {
+        break;
+      }
+
+      const rooms = await ctx.db
+        .query("rooms")
+        .withIndex("by_status", (q) => q.eq("status", status))
+        .collect();
+
+      for (const room of rooms) {
+        if (scheduled >= MAX_LIFECYCLE_ROOMS_PER_SWEEP) {
+          break;
+        }
+
+        if (roomLifecycleAction(room, now) === "archive") {
+          await ctx.scheduler.runAfter(0, internal.rooms.archiveRoom, { roomId: room._id });
+          scheduled += 1;
+        }
+      }
+    }
+
+    // Purge phase: archived rooms past their retention window.
+    const archivedRooms = await ctx.db
+      .query("rooms")
+      .withIndex("by_status", (q) => q.eq("status", "archived"))
+      .collect();
+
+    for (const room of archivedRooms) {
+      if (scheduled >= MAX_LIFECYCLE_ROOMS_PER_SWEEP) {
+        break;
+      }
+
+      if (roomLifecycleAction(room, now) === "purge") {
+        await ctx.scheduler.runAfter(0, internal.rooms.purgeRoom, { roomId: room._id });
+        scheduled += 1;
+      }
+    }
+
+    return null;
+  },
+});
+
+export const archiveRoom = internalMutation({
+  args: {
+    roomId: v.id("rooms"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const room = await ctx.db.get(args.roomId);
+
+    if (!room || roomLifecycleAction(room, now) !== "archive") {
+      return null;
+    }
+
+    await ctx.db.patch(room._id, {
+      archivedAt: now,
+      status: "archived",
+      updatedAt: now,
+    });
+
+    return null;
+  },
+});
+
+export const purgeRoom = internalMutation({
+  args: {
+    roomId: v.id("rooms"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const room = await ctx.db.get(args.roomId);
+
+    if (!room || roomLifecycleAction(room, now) !== "purge") {
+      return null;
+    }
+
+    // Delete each drawing blob referenced by an entry payload, then the entries.
+    // Skipped drawings and prompt/guess entries carry no storage artifact.
+    const entries = await ctx.db
+      .query("entries")
+      .withIndex("by_room_turn", (q) => q.eq("roomId", room._id))
+      .collect();
+
+    for (const entry of entries) {
+      if ("drawing" in entry.payload) {
+        await ctx.storage.delete(entry.payload.drawing.artifact.storageId);
+      }
+
+      await ctx.db.delete(entry._id);
+    }
+
+    const assignments = await ctx.db
+      .query("assignments")
+      .withIndex("by_room_turn", (q) => q.eq("roomId", room._id))
+      .collect();
+
+    for (const assignment of assignments) {
+      await ctx.db.delete(assignment._id);
+    }
+
+    const chains = await ctx.db
+      .query("chains")
+      .withIndex("by_room", (q) => q.eq("roomId", room._id))
+      .collect();
+
+    for (const chain of chains) {
+      await ctx.db.delete(chain._id);
+    }
+
+    const players = await ctx.db
+      .query("players")
+      .withIndex("by_room", (q) => q.eq("roomId", room._id))
+      .collect();
+
+    for (const player of players) {
+      await ctx.db.delete(player._id);
+    }
+
+    // Deleting the room doc frees its code: createUniqueRoomCode only collides on
+    // existing rooms (by_code lookup), so the code is available for reuse.
+    await ctx.db.delete(room._id);
 
     return null;
   },
