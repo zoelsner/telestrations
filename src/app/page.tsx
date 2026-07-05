@@ -41,7 +41,7 @@ export default function Home() {
           <div className="mt-2 grid gap-3 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
             <div>
               <h1 className="font-display text-4xl tracking-normal text-[var(--app-foreground)] sm:text-[44px] sm:leading-none">
-                Telestrations
+                Pass the Doodle
               </h1>
               <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--app-muted-strong)]">
                 Create a room, send the invite link, and play one focused turn at a time.

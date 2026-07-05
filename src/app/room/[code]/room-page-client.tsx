@@ -126,7 +126,7 @@ function RoomPageLive({ code }: { code: string }) {
               Room {code}
             </p>
             <h1 className="font-display text-2xl text-[var(--app-foreground)] sm:text-[28px]">
-              Telestrations
+              Pass the Doodle
             </h1>
           </div>
           <div className="flex flex-col gap-2 sm:items-end">
@@ -1816,7 +1816,7 @@ function RoomUnavailable({ code }: { code: string }) {
             Room {code}
           </p>
           <h1 className="font-display text-2xl text-[var(--app-foreground)] sm:text-[28px]">
-            Telestrations
+            Pass the Doodle
           </h1>
         </header>
         <Panel className="mt-5 p-4">

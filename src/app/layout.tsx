@@ -15,8 +15,8 @@ const paytoneOne = Paytone_One({
 });
 
 export const metadata: Metadata = {
-  title: "Telestrations",
-  description: "A modern team drawing and guessing game.",
+  title: "Pass the Doodle",
+  description: "Pass a doodle down the line and see what comes back.",
 };
 
 export default function RootLayout({

@@ -4,7 +4,7 @@ test.describe("app shell", () => {
   test("shows focused create and join paths without gameplay panels", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.getByRole("heading", { level: 1, name: "Telestrations" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Pass the Doodle" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Create a room" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Join a room" })).toBeVisible();
     await expect(page.getByPlaceholder("Maya")).toBeVisible();
@@ -33,7 +33,7 @@ test.describe("app shell", () => {
   test("renders the room route shell", async ({ page }) => {
     await page.goto("/room/F7K2");
 
-    await expect(page.getByRole("heading", { level: 1, name: "Telestrations" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Pass the Doodle" })).toBeVisible();
     await expect(page.getByText("Room F7K2", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Copy invite link" })).toBeVisible();
 

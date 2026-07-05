@@ -52,7 +52,7 @@ describe("archive export manifest", () => {
       },
     });
 
-    expect(manifest.title).toBe("Telestrations AB12");
+    expect(manifest.title).toBe("Pass the Doodle AB12");
     expect(manifest.fileName).toBe("telestrations-AB12-2026-05-16.pdf");
     expect(manifest.summaryLines).toEqual([
       "Generated May 16, 2026",

@@ -1,4 +1,4 @@
-# Telestrations
+# Pass the Doodle
 
 A modern team drawing and guessing game built with Next.js and Convex.
 
