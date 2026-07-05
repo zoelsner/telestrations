@@ -6,6 +6,7 @@ import {
   MAX_GUESS_LENGTH,
   MAX_PROMPT_LENGTH,
   prepareEntrySubmission,
+  validateDrawingBlob,
   type DrawingSubmission,
 } from "./submission";
 
@@ -218,6 +219,59 @@ describe("entry submission", () => {
         roomStatus: "active",
       }),
     ).toMatchObject({ code: "wrong_entry_type", ok: false });
+  });
+});
+
+describe("validateDrawingBlob", () => {
+  it("rejects a missing blob without deleting anything", () => {
+    expect(validateDrawingBlob(null)).toEqual({
+      ok: false,
+      reason: "Drawing upload is missing.",
+    });
+  });
+
+  it("rejects an oversize blob and requests deletion", () => {
+    expect(
+      validateDrawingBlob({
+        size: MAX_DRAWING_ARTIFACT_BYTES + 1,
+        contentType: "image/png",
+      }),
+    ).toEqual({
+      ok: false,
+      reason: "Drawing image is too large.",
+    });
+  });
+
+  it("rejects a blob with the wrong content type and requests deletion", () => {
+    expect(
+      validateDrawingBlob({
+        size: 2048,
+        contentType: "image/jpeg",
+      }),
+    ).toEqual({
+      ok: false,
+      reason: "Drawing image is invalid.",
+    });
+  });
+
+  it("rejects a blob with a missing content type and requests deletion", () => {
+    expect(
+      validateDrawingBlob({
+        size: 2048,
+      }),
+    ).toEqual({
+      ok: false,
+      reason: "Drawing image is invalid.",
+    });
+  });
+
+  it("accepts a PNG blob exactly at the size cap", () => {
+    expect(
+      validateDrawingBlob({
+        size: MAX_DRAWING_ARTIFACT_BYTES,
+        contentType: "image/png",
+      }),
+    ).toEqual({ ok: true });
   });
 });
 

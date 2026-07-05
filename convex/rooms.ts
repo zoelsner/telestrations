@@ -41,7 +41,7 @@ import {
   validateRoomCode,
 } from "../src/domain/room-join";
 import { getStartGameGate } from "../src/domain/start-game";
-import { prepareEntrySubmission } from "../src/domain/submission";
+import { prepareEntrySubmission, validateDrawingBlob } from "../src/domain/submission";
 import { getTurnDeadline, getTurnSubmissionGate, validateTimerSeconds } from "../src/domain/timer";
 
 const roomResult = v.object({
@@ -1312,6 +1312,25 @@ export const submitEntry = mutation({
 
     if (!assignment) {
       throw roomError("assignment_not_found", "No active assignment was found.");
+    }
+
+    if (preparedSubmission.payload.type === "drawing") {
+      const storageId = preparedSubmission.payload.drawing.artifact.storageId;
+      const blob = await ctx.db.system.get(storageId);
+      const blobResult = validateDrawingBlob(
+        blob
+          ? {
+              size: blob.size,
+              ...(blob.contentType === undefined ? {} : { contentType: blob.contentType }),
+            }
+          : null,
+      );
+
+      if (!blobResult.ok) {
+        // Deleting the blob here would be undone by this mutation's own transaction
+        // rollback when we throw; the hourly orphan sweep collects rejected blobs.
+        throw roomError("invalid_submission_payload", blobResult.reason);
+      }
     }
 
     const entryId = await ctx.db.insert("entries", {
