@@ -126,6 +126,8 @@ export default defineSchema({
     lastSeenAt: v.number(),
     disconnectedAt: v.optional(v.number()),
     removedAt: v.optional(v.number()),
+    rejoinTokenHash: v.optional(v.string()),
+    rejoinIssuedAt: v.optional(v.number()),
   })
     .index("by_room", ["roomId"])
     .index("by_room_order", ["roomId", "order"])
