@@ -67,7 +67,7 @@ test.describe("self-service seat reclaim", () => {
       await submitDrawing(guestOne);
       await submitDrawing(reclaimer);
 
-      await expect(host.getByRole("heading", { name: "Guess this" })).toBeVisible();
+      await expect(host.getByRole("heading", { name: "What is this?" })).toBeVisible();
     } finally {
       await hostContext.close();
       await guestOneContext.close();
@@ -86,14 +86,14 @@ async function joinRoom(page: Page, roomUrl: string, displayName: string) {
 async function submitPrompt(page: Page, prompt: string) {
   await expect(page.getByRole("heading", { name: "Write a prompt" })).toBeVisible();
   await page.getByPlaceholder("A project kickoff on roller skates").fill(prompt);
-  await page.getByRole("button", { name: "Submit prompt" }).click();
-  await expect(page.getByRole("button", { name: "Submit prompt" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Send it down the line" }).click();
+  await expect(page.getByRole("button", { name: "Send it down the line" })).toHaveCount(0);
 }
 
 async function submitDrawing(page: Page) {
   await expect(page.getByRole("heading", { name: "Draw this" })).toBeVisible();
   await page.getByTestId("drawing-canvas-element").click();
   await expect(page.getByTestId("drawing-status")).toContainText("1 stroke");
-  await page.getByRole("button", { name: "Submit drawing" }).click();
-  await expect(page.getByRole("button", { name: "Submit drawing" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Pass it on" }).click();
+  await expect(page.getByRole("button", { name: "Pass it on" })).toHaveCount(0);
 }
