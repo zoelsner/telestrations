@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
 import { api } from "../../convex/_generated/api";
+import { errorMessage } from "@/app/lib/error-message";
 import { Button, TextInput } from "@/components/ui";
 import { validateDisplayName } from "@/domain/room-join";
 import { createPlayerToken, savePlayerToken } from "./room-session";
@@ -50,7 +51,7 @@ function CreateRoomFormLive() {
       savePlayerToken(room.code, playerToken);
       router.push(room.sharePath);
     } catch (caughtError) {
-      setError(errorMessage(caughtError));
+      setError(errorMessage(caughtError, "Could not create the room."));
       setIsSubmitting(false);
     }
   }
@@ -74,12 +75,4 @@ function CreateRoomFormLive() {
       </Button>
     </form>
   );
-}
-
-function errorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return "Could not create the room.";
 }

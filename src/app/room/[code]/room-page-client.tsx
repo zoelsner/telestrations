@@ -36,6 +36,7 @@ import Image from "next/image";
 
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { errorMessage } from "@/app/lib/error-message";
 import { DrawingBoard, type DrawingBoardValue } from "@/components/drawing-board";
 import { Button, IconButton, Panel, TextInput } from "@/components/ui";
 import { buildActiveTaskView, type ActiveTaskPreviousEntry } from "@/domain/active-task";
@@ -1337,7 +1338,7 @@ function JoinRoomForm({ code, playerToken }: { code: string; playerToken: string
         playerToken,
       });
     } catch (caughtError) {
-      setError(errorMessage(caughtError));
+      setError(errorMessage(caughtError, "Could not join the room."));
       setIsSubmitting(false);
     }
   }
@@ -1477,7 +1478,7 @@ function PlayerStatus({
     try {
       await startGame({ code, playerToken });
     } catch (caughtError) {
-      setError(errorMessage(caughtError));
+      setError(errorMessage(caughtError, "Could not start the game."));
     } finally {
       setIsSubmitting(false);
     }
@@ -1861,12 +1862,4 @@ function isStorageId(value: unknown): value is Id<"_storage"> {
 
 function ErrorText({ message }: { message: string }) {
   return <p className="text-sm text-red-600">{message}</p>;
-}
-
-function errorMessage(error: unknown, fallback = "Could not join the room.") {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return fallback;
 }
