@@ -57,7 +57,7 @@ function CreateRoomFormLive() {
   }
 
   return (
-    <form className="mt-3 grid gap-3" onSubmit={handleSubmit}>
+    <form className="mt-3 grid min-w-0 gap-3" onSubmit={handleSubmit}>
       <label>
         <span className="text-xs font-medium uppercase text-[var(--app-muted)]">Your name</span>
         <TextInput
@@ -68,7 +68,7 @@ function CreateRoomFormLive() {
           value={hostName}
         />
       </label>
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="text-sm break-words text-red-600">{error}</p> : null}
       <Button className="w-full" disabled={isSubmitting} type="submit" variant="primary">
         {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <DoorOpen size={16} />}
         Create room

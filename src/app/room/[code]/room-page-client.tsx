@@ -400,7 +400,7 @@ function RejoinLinkButton({
 
   return (
     <span className="flex items-center gap-2">
-      {error ? <span className="text-[11px] text-red-600">{error}</span> : null}
+      {error ? <span className="text-[11px] break-words text-red-600">{error}</span> : null}
       <IconButton
         disabled={isIssuing}
         label={`Copy rejoin link for ${displayName}`}
@@ -671,7 +671,7 @@ function TextTaskForm({
   }
 
   return (
-    <form className="grid gap-3" onSubmit={handleSubmit}>
+    <form className="grid min-w-0 gap-3" onSubmit={handleSubmit}>
       <label>
         <span className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--app-muted)]">
           {inputLabel}
@@ -1344,7 +1344,7 @@ function JoinRoomForm({ code, playerToken }: { code: string; playerToken: string
   }
 
   return (
-    <form className="grid gap-3" onSubmit={handleSubmit}>
+    <form className="grid min-w-0 gap-3" onSubmit={handleSubmit}>
       <div>
         <h2 className="text-sm font-semibold">Join room</h2>
         <p className="mt-1 text-sm text-[var(--app-muted)]">Enter a display name for this round.</p>
@@ -1359,7 +1359,7 @@ function JoinRoomForm({ code, playerToken }: { code: string; playerToken: string
           value={displayName}
         />
       </label>
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="text-sm break-words text-red-600">{error}</p> : null}
       <Button className="w-full" disabled={isSubmitting} type="submit" variant="primary">
         {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <DoorOpen size={16} />}
         Join
@@ -1517,7 +1517,7 @@ function PlayerStatus({
           {!startGate.ok ? (
             <p className="text-sm leading-6 text-[var(--app-muted)]">{startGate.message}</p>
           ) : null}
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          {error ? <p className="text-sm break-words text-red-600">{error}</p> : null}
         </>
       ) : null}
     </div>
@@ -1634,10 +1634,10 @@ function PromptModeSelect({
   value: "player-written" | "safe-pack";
 }) {
   return (
-    <label className="grid gap-1 text-[10.5px] font-bold uppercase tracking-wider text-[var(--app-cream-text)]">
+    <label className="grid min-w-0 gap-1 text-[10.5px] font-bold uppercase tracking-wider text-[var(--app-cream-text)]">
       Prompt source
       <select
-        className="h-10 rounded-[10px] border-[1.5px] border-[var(--app-border)] bg-white px-3 text-sm font-medium normal-case text-[var(--app-foreground)] focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)]"
+        className="h-10 w-full min-w-0 rounded-[10px] border-[1.5px] border-[var(--app-border)] bg-white px-3 text-sm font-medium normal-case text-[var(--app-foreground)] focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)]"
         disabled={disabled}
         onChange={(event) =>
           onChange(event.target.value === "safe-pack" ? "safe-pack" : "player-written")
@@ -1663,10 +1663,10 @@ function PromptPackSelect({
   value: string;
 }) {
   return (
-    <label className="grid gap-1 text-[10.5px] font-bold uppercase tracking-wider text-[var(--app-cream-text)]">
+    <label className="grid min-w-0 gap-1 text-[10.5px] font-bold uppercase tracking-wider text-[var(--app-cream-text)]">
       Prompt theme
       <select
-        className="h-10 rounded-[10px] border-[1.5px] border-[var(--app-border)] bg-white px-3 text-sm font-medium normal-case text-[var(--app-foreground)] focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)]"
+        className="h-10 w-full min-w-0 rounded-[10px] border-[1.5px] border-[var(--app-border)] bg-white px-3 text-sm font-medium normal-case text-[var(--app-foreground)] focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)]"
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
         value={value}
@@ -1770,10 +1770,10 @@ function TimerSelect({
   value: number;
 }) {
   return (
-    <label className="grid gap-1 text-[10.5px] font-bold uppercase tracking-wider text-[var(--app-teal)]">
+    <label className="grid min-w-0 gap-1 text-[10.5px] font-bold uppercase tracking-wider text-[var(--app-teal)]">
       {label}
       <select
-        className="h-10 rounded-[10px] border-[1.5px] border-[var(--app-border)] bg-white px-3 text-sm font-medium normal-case text-[var(--app-foreground)] focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)]"
+        className="h-10 w-full min-w-0 rounded-[10px] border-[1.5px] border-[var(--app-border)] bg-white px-3 text-sm font-medium normal-case text-[var(--app-foreground)] focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)]"
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
         value={value}
@@ -1861,5 +1861,5 @@ function isStorageId(value: unknown): value is Id<"_storage"> {
 }
 
 function ErrorText({ message }: { message: string }) {
-  return <p className="text-sm text-red-600">{message}</p>;
+  return <p className="text-sm break-words text-red-600">{message}</p>;
 }
