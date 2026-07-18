@@ -1,0 +1,44 @@
+name: Deploy Convex
+
+# Deploys the Convex backend so it ships in lockstep with the Vercel frontend.
+# Requires the CONVEX_DEPLOY_KEY repository secret (a production deploy key
+# from the Convex dashboard). See issue #102.
+on:
+  push:
+    branches: [main, claude/website-update-error-fix-n72hwh]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-convex:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check deploy key is configured
+        run: |
+          if [ -z "$CONVEX_DEPLOY_KEY" ]; then
+            echo "::error::CONVEX_DEPLOY_KEY secret is not set. Add a production deploy key from the Convex dashboard under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+
+      - name: Deploy Convex functions
+        run: npx convex deploy --yes
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
