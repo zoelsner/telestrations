@@ -26,7 +26,7 @@ export function JoinRoomCodeForm() {
   }
 
   return (
-    <form className="mt-3 grid gap-3" onSubmit={handleSubmit}>
+    <form className="mt-3 grid min-w-0 gap-3" onSubmit={handleSubmit}>
       <label>
         <span className="text-xs font-medium uppercase text-[var(--app-muted)]">
           Room code or link
@@ -38,7 +38,7 @@ export function JoinRoomCodeForm() {
           value={roomCode}
         />
       </label>
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="text-sm break-words text-red-600">{error}</p> : null}
       <Button className="w-full" type="submit" variant="ink">
         <DoorOpen size={16} />
         Join room

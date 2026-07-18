@@ -36,6 +36,7 @@ import Image from "next/image";
 
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { errorMessage } from "@/app/lib/error-message";
 import { DrawingBoard, type DrawingBoardValue } from "@/components/drawing-board";
 import { Button, IconButton, Panel, TextInput } from "@/components/ui";
 import { buildActiveTaskView, type ActiveTaskPreviousEntry } from "@/domain/active-task";
@@ -58,7 +59,7 @@ const PLAYER_COLORS = [
 ];
 
 type Lobby = NonNullable<ReturnType<typeof useQuery<typeof api.rooms.getLobby>>>;
-type ActiveTask = NonNullable<ReturnType<typeof useQuery<typeof api.rooms.getActiveTask>>>;
+export type ActiveTask = NonNullable<ReturnType<typeof useQuery<typeof api.rooms.getActiveTask>>>;
 type Reveal = NonNullable<ReturnType<typeof useQuery<typeof api.rooms.getReveal>>>;
 type RevealChain = NonNullable<Reveal>["chains"][number];
 type RevealEntry = RevealChain["entries"][number];
@@ -399,7 +400,7 @@ function RejoinLinkButton({
 
   return (
     <span className="flex items-center gap-2">
-      {error ? <span className="text-[11px] text-red-600">{error}</span> : null}
+      {error ? <span className="text-[11px] break-words text-red-600">{error}</span> : null}
       <IconButton
         disabled={isIssuing}
         label={`Copy rejoin link for ${displayName}`}
@@ -517,7 +518,7 @@ function LobbyView({
   );
 }
 
-function ActiveTaskSurface({
+export function ActiveTaskSurface({
   activeTask,
   code,
   playerToken,
@@ -670,7 +671,7 @@ function TextTaskForm({
   }
 
   return (
-    <form className="grid gap-3" onSubmit={handleSubmit}>
+    <form className="grid min-w-0 gap-3" onSubmit={handleSubmit}>
       <label>
         <span className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--app-muted)]">
           {inputLabel}
@@ -1337,13 +1338,13 @@ function JoinRoomForm({ code, playerToken }: { code: string; playerToken: string
         playerToken,
       });
     } catch (caughtError) {
-      setError(errorMessage(caughtError));
+      setError(errorMessage(caughtError, "Could not join the room."));
       setIsSubmitting(false);
     }
   }
 
   return (
-    <form className="grid gap-3" onSubmit={handleSubmit}>
+    <form className="grid min-w-0 gap-3" onSubmit={handleSubmit}>
       <div>
         <h2 className="text-sm font-semibold">Join room</h2>
         <p className="mt-1 text-sm text-[var(--app-muted)]">Enter a display name for this round.</p>
@@ -1358,7 +1359,7 @@ function JoinRoomForm({ code, playerToken }: { code: string; playerToken: string
           value={displayName}
         />
       </label>
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="text-sm break-words text-red-600">{error}</p> : null}
       <Button className="w-full" disabled={isSubmitting} type="submit" variant="primary">
         {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <DoorOpen size={16} />}
         Join
@@ -1477,7 +1478,7 @@ function PlayerStatus({
     try {
       await startGame({ code, playerToken });
     } catch (caughtError) {
-      setError(errorMessage(caughtError));
+      setError(errorMessage(caughtError, "Could not start the game."));
     } finally {
       setIsSubmitting(false);
     }
@@ -1516,7 +1517,7 @@ function PlayerStatus({
           {!startGate.ok ? (
             <p className="text-sm leading-6 text-[var(--app-muted)]">{startGate.message}</p>
           ) : null}
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          {error ? <p className="text-sm break-words text-red-600">{error}</p> : null}
         </>
       ) : null}
     </div>
@@ -1633,10 +1634,10 @@ function PromptModeSelect({
   value: "player-written" | "safe-pack";
 }) {
   return (
-    <label className="grid gap-1 text-[10.5px] font-bold uppercase tracking-wider text-[var(--app-cream-text)]">
+    <label className="grid min-w-0 gap-1 text-[10.5px] font-bold uppercase tracking-wider text-[var(--app-cream-text)]">
       Prompt source
       <select
-        className="h-10 rounded-[10px] border-[1.5px] border-[var(--app-border)] bg-white px-3 text-sm font-medium normal-case text-[var(--app-foreground)] focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)]"
+        className="h-10 w-full min-w-0 rounded-[10px] border-[1.5px] border-[var(--app-border)] bg-white px-3 text-sm font-medium normal-case text-[var(--app-foreground)] focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)]"
         disabled={disabled}
         onChange={(event) =>
           onChange(event.target.value === "safe-pack" ? "safe-pack" : "player-written")
@@ -1662,10 +1663,10 @@ function PromptPackSelect({
   value: string;
 }) {
   return (
-    <label className="grid gap-1 text-[10.5px] font-bold uppercase tracking-wider text-[var(--app-cream-text)]">
+    <label className="grid min-w-0 gap-1 text-[10.5px] font-bold uppercase tracking-wider text-[var(--app-cream-text)]">
       Prompt theme
       <select
-        className="h-10 rounded-[10px] border-[1.5px] border-[var(--app-border)] bg-white px-3 text-sm font-medium normal-case text-[var(--app-foreground)] focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)]"
+        className="h-10 w-full min-w-0 rounded-[10px] border-[1.5px] border-[var(--app-border)] bg-white px-3 text-sm font-medium normal-case text-[var(--app-foreground)] focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)]"
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
         value={value}
@@ -1769,10 +1770,10 @@ function TimerSelect({
   value: number;
 }) {
   return (
-    <label className="grid gap-1 text-[10.5px] font-bold uppercase tracking-wider text-[var(--app-teal)]">
+    <label className="grid min-w-0 gap-1 text-[10.5px] font-bold uppercase tracking-wider text-[var(--app-teal)]">
       {label}
       <select
-        className="h-10 rounded-[10px] border-[1.5px] border-[var(--app-border)] bg-white px-3 text-sm font-medium normal-case text-[var(--app-foreground)] focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)]"
+        className="h-10 w-full min-w-0 rounded-[10px] border-[1.5px] border-[var(--app-border)] bg-white px-3 text-sm font-medium normal-case text-[var(--app-foreground)] focus:outline-none focus:ring-4 focus:ring-[var(--app-accent-soft)]"
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
         value={value}
@@ -1860,13 +1861,5 @@ function isStorageId(value: unknown): value is Id<"_storage"> {
 }
 
 function ErrorText({ message }: { message: string }) {
-  return <p className="text-sm text-red-600">{message}</p>;
-}
-
-function errorMessage(error: unknown, fallback = "Could not join the room.") {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return fallback;
+  return <p className="text-sm break-words text-red-600">{message}</p>;
 }

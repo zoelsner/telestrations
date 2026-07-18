@@ -179,7 +179,7 @@ export function DrawingBoard({
   return (
     <div className="grid min-w-0 gap-3">
       <div
-        className="flex flex-col gap-3 rounded-xl border-[1.5px] border-[var(--app-border)] bg-[var(--app-panel)] p-2 sm:flex-row sm:items-center sm:justify-between"
+        className="flex min-w-0 flex-col gap-3 rounded-xl border-[1.5px] border-[var(--app-border)] bg-[var(--app-panel)] p-2 sm:flex-row sm:items-center sm:justify-between"
         data-testid="drawing-toolbar"
       >
         <div className="flex min-w-0 touch-pan-x items-center gap-2 overflow-x-auto overscroll-x-contain pb-1 sm:pb-0">
@@ -234,7 +234,7 @@ export function DrawingBoard({
         </div>
       </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 touch-pan-x items-center gap-2 overflow-x-auto overscroll-x-contain pb-1 sm:pb-0">
           {BRUSH_SIZES.map((size) => (
             <button
