@@ -59,7 +59,7 @@ const PLAYER_COLORS = [
 ];
 
 type Lobby = NonNullable<ReturnType<typeof useQuery<typeof api.rooms.getLobby>>>;
-type ActiveTask = NonNullable<ReturnType<typeof useQuery<typeof api.rooms.getActiveTask>>>;
+export type ActiveTask = NonNullable<ReturnType<typeof useQuery<typeof api.rooms.getActiveTask>>>;
 type Reveal = NonNullable<ReturnType<typeof useQuery<typeof api.rooms.getReveal>>>;
 type RevealChain = NonNullable<Reveal>["chains"][number];
 type RevealEntry = RevealChain["entries"][number];
@@ -518,7 +518,7 @@ function LobbyView({
   );
 }
 
-function ActiveTaskSurface({
+export function ActiveTaskSurface({
   activeTask,
   code,
   playerToken,
