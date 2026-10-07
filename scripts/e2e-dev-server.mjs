@@ -2,7 +2,8 @@ import { existsSync } from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
 
 const localDeploymentConfig = ".convex/local/default/config.json";
-const useAnonymousDeployment = process.env.CI === "true" && !existsSync(localDeploymentConfig);
+const useAnonymousDeployment =
+  process.env.CI === "true" || process.env.CONVEX_AGENT_MODE === "anonymous";
 const convexEnv = useAnonymousDeployment
   ? { ...process.env, CONVEX_AGENT_MODE: "anonymous" }
   : process.env;

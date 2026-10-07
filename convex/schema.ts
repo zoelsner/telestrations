@@ -161,7 +161,8 @@ export default defineSchema({
   })
     .index("by_room_turn", ["roomId", "turn"])
     .index("by_chain_turn", ["chainId", "turn"])
-    .index("by_author_turn", ["authorPlayerId", "turn"]),
+    .index("by_author_turn", ["authorPlayerId", "turn"])
+    .index("by_drawing_storage_id", ["payload.drawing.artifact.storageId"]),
 
   assignments: defineTable({
     roomId: v.id("rooms"),
@@ -188,5 +189,12 @@ export default defineSchema({
     key: v.string(),
     windowStartMs: v.number(),
     count: v.number(),
+  })
+    .index("by_key", ["key"])
+    .index("by_window_start_ms", ["windowStartMs"]),
+
+  cleanupState: defineTable({
+    key: v.literal("orphaned-uploads"),
+    cursor: v.union(v.string(), v.null()),
   }).index("by_key", ["key"]),
 });
