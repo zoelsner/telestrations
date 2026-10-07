@@ -6,7 +6,7 @@ import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { MAX_PLAYERS_PER_ROOM } from "../src/domain/game-state";
 import { getRoomLifecycleAction } from "../src/domain/lifecycle";
-import { ORPHAN_UPLOAD_MIN_AGE_MS, selectOrphanStorageIds } from "../src/domain/orphan-uploads";
+import { ORPHAN_UPLOAD_MIN_AGE_MS } from "../src/domain/orphan-uploads";
 import {
   CREATE_ROOM_GLOBAL_KEY,
   RATE_LIMITS,
@@ -1720,64 +1720,79 @@ export const purgeRoom = internalMutation({
   },
 });
 
-// Upper bound on blob deletions and rate-limit row prunes per sweep so a large
-// backlog is drained across several hourly runs instead of one heavy transaction.
+// Bound each hourly scan and prune independently of total retained game history.
 const MAX_ORPHAN_DELETIONS_PER_SWEEP = 50;
 
 /**
- * Hourly reconciliation sweep: `generateDrawingUploadUrl` mints an upload URL, but
- * the storageId only exists once the client POSTs the drawing, so an abandoned or
- * failed upload leaves an unreferenced `_storage` blob that no other path ever
- * revisits. This scans all drawing entries to build the complete referenced set
- * (a partial scan could wrongly delete a referenced blob, so it cannot be
- * bounded), then deletes old, unreferenced blobs. In the same transaction, prunes
- * stale `rateLimits` rows (Part 1) past their TTL so that table doesn't grow
- * forever alongside `tokenHash` churn.
+ * Visit one storage page per run, including pages containing only referenced
+ * drawings. A durable cursor prevents those drawings from starving later orphans.
+ * Each candidate is checked in its own transaction so even large stroke payloads
+ * cannot exhaust the sweep's read budget. No entries need to be migrated: the
+ * reference index reads the artifact ID already stored in legacy payloads.
  */
 export const sweepOrphanedUploads = internalMutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
     const now = Date.now();
-
-    // Complete referenced set — MUST be complete or we could delete a referenced blob.
-    const entries = await ctx.db.query("entries").collect();
-    const referenced = new Set<Id<"_storage">>();
-
-    for (const entry of entries) {
-      if ("drawing" in entry.payload) {
-        referenced.add(entry.payload.drawing.artifact.storageId);
-      }
-    }
-
-    const blobs = await ctx.db.system.query("_storage").collect();
-    const toDelete = selectOrphanStorageIds({
-      now,
-      minAgeMs: ORPHAN_UPLOAD_MIN_AGE_MS,
-      maxDeletions: MAX_ORPHAN_DELETIONS_PER_SWEEP,
-      blobs: blobs.map((blob) => ({ storageId: blob._id, creationTime: blob._creationTime })),
-      referencedStorageIds: referenced,
+    const state = await ctx.db
+      .query("cleanupState")
+      .withIndex("by_key", (q) => q.eq("key", "orphaned-uploads"))
+      .unique();
+    const blobs = await ctx.db.system.query("_storage").paginate({
+      cursor: state?.cursor ?? null,
+      numItems: MAX_ORPHAN_DELETIONS_PER_SWEEP,
+      maximumRowsRead: MAX_ORPHAN_DELETIONS_PER_SWEEP,
     });
 
-    for (const storageId of toDelete) {
-      await ctx.storage.delete(storageId);
-    }
-
-    // Prune stale rate-limit rows (Part 1) in the same sweep.
-    const rateLimitRows = await ctx.db.query("rateLimits").collect();
-    let pruned = 0;
-
-    for (const row of rateLimitRows) {
-      if (pruned >= MAX_ORPHAN_DELETIONS_PER_SWEEP) {
-        break;
-      }
-
-      if (row.windowStartMs < now - RATE_LIMIT_ROW_TTL_MS) {
-        await ctx.db.delete(row._id);
-        pruned += 1;
+    for (const blob of blobs.page) {
+      if (now - blob._creationTime >= ORPHAN_UPLOAD_MIN_AGE_MS) {
+        await ctx.scheduler.runAfter(0, internal.rooms.deleteOrphanedUpload, {
+          storageId: blob._id,
+        });
       }
     }
 
+    const cursor = blobs.isDone ? null : blobs.continueCursor;
+    if (state) {
+      await ctx.db.patch(state._id, { cursor });
+    } else {
+      await ctx.db.insert("cleanupState", { key: "orphaned-uploads", cursor });
+    }
+
+    const staleRows = await ctx.db
+      .query("rateLimits")
+      .withIndex("by_window_start_ms", (q) => q.lt("windowStartMs", now - RATE_LIMIT_ROW_TTL_MS))
+      .take(MAX_ORPHAN_DELETIONS_PER_SWEEP);
+
+    for (const row of staleRows) {
+      await ctx.db.delete(row._id);
+    }
+
+    return null;
+  },
+});
+
+export const deleteOrphanedUpload = internalMutation({
+  args: { storageId: v.id("_storage") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const blob = await ctx.db.system.get(args.storageId);
+    if (!blob || Date.now() - blob._creationTime < ORPHAN_UPLOAD_MIN_AGE_MS) {
+      return null;
+    }
+
+    // Check live references in the same transaction as deletion. A submission
+    // racing this check causes OCC to retry against the committed entry.
+    const reference = await ctx.db
+      .query("entries")
+      .withIndex("by_drawing_storage_id", (q) =>
+        q.eq("payload.drawing.artifact.storageId", args.storageId),
+      )
+      .first();
+    if (!reference) {
+      await ctx.storage.delete(args.storageId);
+    }
     return null;
   },
 });
